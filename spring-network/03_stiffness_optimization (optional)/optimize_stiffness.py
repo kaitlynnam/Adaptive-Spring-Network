@@ -191,7 +191,7 @@ def print_torque_table(angles_deg, target_torque, initial_torque, optimized_torq
 def main():
     parser = argparse.ArgumentParser(description="Optimize spring stiffnesses with finite-difference gradient descent.")
     parser.add_argument("--topology", default=DEFAULT_TOPOLOGY_PATH, help="Path to the starting topology JSON file.")
-    parser.add_argument("--target", default="rough_terrain", help="Target profile name from evaluate_profiles.py.")
+    parser.add_argument("--target", default="piecewise_0000", help="Target profile name from evaluate_profiles.py.")
     parser.add_argument("--iterations", type=int, default=200, help="Gradient descent iterations.")
     parser.add_argument("--learning-rate", type=float, default=0.8, help="Gradient descent step size.")
     parser.add_argument("--epsilon", type=float, default=1e-3, help="Finite difference step in N/m.")

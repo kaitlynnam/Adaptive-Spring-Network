@@ -7,21 +7,26 @@ import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "01_core_model"))
+sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
+from profile_generator import default_piecewise_profiles
 from topology_loader import DEFAULT_TOPOLOGY_PATH, load_network
 
 
-def target_profiles(theta):
-    """Terrain torque profiles used for comparison and training.
+def integrate_trapezoid(y, x):
+    trapezoid = getattr(np, "trapezoid", None)
+    if trapezoid is not None:
+        return trapezoid(y, x)
+    return np.trapz(y, x)
 
-    These profiles do not change the network by themselves. They are simple
-    terrain-style targets for this first spring-network model.
+
+def target_profiles(theta):
+    """Random piecewise-linear torque profiles used for comparison.
+
+    Each target is defined by random torque-angle knot points and evaluated by
+    linear interpolation between those knots.
     """
-    return {
-        "flat_terrain": -75.0 * theta,
-        "rough_terrain": -135.0 * theta - 55.0 * theta**3,
-        "mixed_terrain": np.where(theta < 0.0, -95.0 * theta, -120.0 * theta) - 25.0 * theta**3,
-    }
+    return default_piecewise_profiles(theta)
 
 
 def model_torque_curve(network, angles_rad):
@@ -54,8 +59,8 @@ def profile_error(model_torque, target_torque):
 
 def load_offload_metrics(angles_rad, model_torque, target_torque):
     residual_torque = target_torque - model_torque
-    baseline_effort = float(np.trapezoid(np.abs(target_torque), angles_rad))
-    residual_effort = float(np.trapezoid(np.abs(residual_torque), angles_rad))
+    baseline_effort = float(integrate_trapezoid(np.abs(target_torque), angles_rad))
+    residual_effort = float(integrate_trapezoid(np.abs(residual_torque), angles_rad))
     net_saved = baseline_effort - residual_effort
     offload_pct = 0.0 if baseline_effort == 0.0 else net_saved / baseline_effort * 100.0
     return {

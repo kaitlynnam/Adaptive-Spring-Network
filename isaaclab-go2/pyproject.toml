@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asn-go2"
+version = "0.1.0"
+description = "Adaptive Spring Network Unitree Go2 Isaac Lab workspace"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["source/asn_go2"]

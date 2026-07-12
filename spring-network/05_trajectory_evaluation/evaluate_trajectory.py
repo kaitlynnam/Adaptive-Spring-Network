@@ -12,14 +12,26 @@ sys.path.insert(0, str(PROJECT_ROOT / "02_baseline_profiles"))
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from adaptive_model import angle_features, forward
-from evaluate_profiles import target_profiles
+from profile_generator import (
+    ANGLE_LIMIT_RAD,
+    DEFAULT_TORQUE_LIMIT_NM,
+    default_profile_named,
+    profile_torque,
+)
 from train_adaptive_dataset import generate_motion_trajectory, generate_profile_parameters
 from topology_loader import DEFAULT_TOPOLOGY_PATH, load_network
 
 
-DEFAULT_BATCH_COUNT = 30
+DEFAULT_BATCH_COUNT = 300
 DEFAULT_BATCH_SEED = 19
 DEFAULT_ADAPTIVE_MODEL_PATH = PROJECT_ROOT / "models" / "adaptive_trained_model.npz"
+
+
+def integrate_trapezoid(y, x):
+    trapezoid = getattr(np, "trapezoid", None)
+    if trapezoid is not None:
+        return trapezoid(y, x)
+    return np.trapz(y, x)
 
 
 def synthetic_trajectory(duration, samples, amplitude_deg, frequency_hz):
@@ -73,14 +85,34 @@ def load_trajectory_csv(path):
     }
 
 
-def terrain_target(profile, theta, theta_dot):
-    if profile == "mixed_terrain":
-        return -90.0 * theta - 20.0 * theta**3 + 10.0 * np.sign(theta_dot) * theta**2
+def generated_target(profile, theta, theta_dot):
+    del theta_dot
+    params = default_profile_named(profile)
+    return profile_torque(theta, params)
 
-    profiles = target_profiles(theta)
-    if profile not in profiles:
-        raise ValueError(f"Unknown profile {profile!r}. Options: flat_terrain, rough_terrain, mixed_terrain")
-    return profiles[profile]
+
+def profile_params_from_trace(profile, theta, tau_target):
+    """Build a five-knot descriptor when a CSV provides target torque directly."""
+    finite = np.isfinite(theta) & np.isfinite(tau_target)
+    if np.count_nonzero(finite) < 2:
+        return default_profile_named(profile)
+
+    order = np.argsort(theta[finite])
+    theta_sorted = theta[finite][order]
+    tau_sorted = tau_target[finite][order]
+    unique_theta, unique_indices = np.unique(theta_sorted, return_index=True)
+    unique_tau = tau_sorted[unique_indices]
+    if len(unique_theta) < 2:
+        return default_profile_named(profile)
+
+    knots_theta = np.linspace(-ANGLE_LIMIT_RAD, ANGLE_LIMIT_RAD, 5)
+    knots_tau = np.interp(knots_theta, unique_theta, unique_tau, left=unique_tau[0], right=unique_tau[-1])
+    return {
+        "name": profile,
+        "family": "piecewise_linear",
+        "knots_theta": knots_theta,
+        "knots_tau": knots_tau,
+    }
 
 
 def prepare_trajectory(args):
@@ -111,12 +143,14 @@ def prepare_trajectory(args):
     profile = trajectory["profile"] or args.profile
     tau_target = trajectory["tau_target"]
     if tau_target is None or np.any(~np.isfinite(tau_target)):
-        tau_target = terrain_target(profile, theta, theta_dot)
+        tau_target = generated_target(profile, theta, theta_dot)
+        profile_params = default_profile_named(profile)
     else:
         tau_target = np.asarray(tau_target, dtype=float)
+        profile_params = profile_params_from_trace(profile, theta, tau_target)
 
     validate_trajectory(t, theta, theta_dot, theta_ddot, tau_target)
-    return profile, t, theta, theta_dot, theta_ddot, tau_target
+    return profile, profile_params, t, theta, theta_dot, theta_ddot, tau_target
 
 
 def validate_trajectory(t, theta, theta_dot, theta_ddot, tau_target):
@@ -153,6 +187,9 @@ def load_adaptive_model(path):
         for key in ["theta_scale", "theta_dot_scale", "theta_ddot_scale"]:
             if key in data:
                 metadata[key] = float(data[key])
+        for key in ["profile_angle_scale", "profile_torque_scale"]:
+            if key in data:
+                metadata[key] = float(data[key])
     return model, metadata
 
 
@@ -176,16 +213,37 @@ def motion_window_features(theta, theta_dot, theta_ddot, metadata):
     return np.asarray(rows, dtype=float)
 
 
-def adaptive_spring_torque_over_time(network, theta, theta_dot, theta_ddot, tau_target, model_path):
+def profile_parameter_features(params, samples, metadata):
+    angle_scale = max(metadata.get("profile_angle_scale", ANGLE_LIMIT_RAD), 1e-9)
+    torque_scale = max(metadata.get("profile_torque_scale", DEFAULT_TORQUE_LIMIT_NM), 1e-9)
+    theta_features = np.asarray(params["knots_theta"], dtype=float) / angle_scale
+    tau_features = np.asarray(params["knots_tau"], dtype=float) / torque_scale
+    features = np.concatenate((theta_features, tau_features))
+    return np.tile(features, (samples, 1))
+
+
+def adaptive_spring_torque_over_time(
+    network,
+    theta,
+    theta_dot,
+    theta_ddot,
+    tau_target,
+    model_path,
+    profile_params=None,
+):
     model, metadata = load_adaptive_model(model_path)
     input_dim = model["w1"].shape[0]
     feature_type = metadata.get("feature_type")
 
-    if feature_type == "motion_window":
+    if feature_type in {"motion_window", "motion_window_profile"}:
         features = motion_window_features(theta, theta_dot, theta_ddot, metadata)
+        if feature_type == "motion_window_profile":
+            if profile_params is None:
+                raise ValueError("motion_window_profile models require profile knot parameters.")
+            features = np.hstack((features, profile_parameter_features(profile_params, len(theta), metadata)))
         if features.shape[1] != input_dim:
             raise ValueError(
-                f"Motion-window model expects {input_dim} inputs, but generated {features.shape[1]}."
+                f"{feature_type} model expects {input_dim} inputs, but generated {features.shape[1]}."
             )
     elif input_dim == 3:
         features = angle_features(theta)
@@ -229,8 +287,8 @@ def evaluate_energy(t, tau_target, tau_spring, theta_dot):
     baseline_motor_power = np.maximum(0.0, tau_target * theta_dot)
     motor_power_with_spring = np.maximum(0.0, residual_torque * theta_dot)
 
-    baseline_motor_energy = float(np.trapezoid(baseline_motor_power, t))
-    motor_energy_with_spring = float(np.trapezoid(motor_power_with_spring, t))
+    baseline_motor_energy = float(integrate_trapezoid(baseline_motor_power, t))
+    motor_energy_with_spring = float(integrate_trapezoid(motor_power_with_spring, t))
     energy_saved = baseline_motor_energy - motor_energy_with_spring
     if abs(baseline_motor_energy) < 1e-12:
         offload_fraction = 0.0
@@ -289,7 +347,7 @@ def print_batch_summary(rows):
     print(f"Max absolute torque error  : {overall['max_abs_torque_error_nm']:.6f} N*m")
     print()
 
-    print("Averages by terrain family")
+    print("Averages by profile family")
     print("--------------------------")
     family_rows = []
     for family in sorted({row["family"] for row in rows}):
@@ -445,7 +503,8 @@ def plot_evaluation(path, t, theta, tau_target, tau_spring, metrics, profile):
 
 def evaluate_case(args, profile, duration, samples, amplitude_deg, frequency_hz):
     trajectory = synthetic_trajectory(duration, samples, amplitude_deg, frequency_hz)
-    tau_target = terrain_target(profile, trajectory["theta"], trajectory["theta_dot"])
+    tau_target = generated_target(profile, trajectory["theta"], trajectory["theta_dot"])
+    profile_params = default_profile_named(profile)
     return evaluate_arrays(
         args,
         profile=profile,
@@ -458,10 +517,24 @@ def evaluate_case(args, profile, duration, samples, amplitude_deg, frequency_hz)
         samples=samples,
         amplitude_deg=amplitude_deg,
         frequency_hz=frequency_hz,
+        profile_params=profile_params,
     )
 
 
-def evaluate_arrays(args, profile, t, theta, theta_dot, theta_ddot, tau_target, duration, samples, amplitude_deg, frequency_hz):
+def evaluate_arrays(
+    args,
+    profile,
+    t,
+    theta,
+    theta_dot,
+    theta_ddot,
+    tau_target,
+    duration,
+    samples,
+    amplitude_deg,
+    frequency_hz,
+    profile_params=None,
+):
     network, topology = load_network(args.topology)
     if args.adaptive_model:
         tau_spring, model_metadata = adaptive_spring_torque_over_time(
@@ -471,6 +544,7 @@ def evaluate_arrays(args, profile, t, theta, theta_dot, theta_ddot, tau_target, 
             theta_ddot,
             tau_target,
             args.adaptive_model,
+            profile_params=profile_params,
         )
         model_name = Path(args.adaptive_model).stem
     else:
@@ -505,7 +579,7 @@ def evaluate_arrays(args, profile, t, theta, theta_dot, theta_ddot, tau_target, 
 
 def run_single(args):
     network, topology = load_network(args.topology)
-    profile, t, theta, theta_dot, theta_ddot, tau_target = prepare_trajectory(args)
+    profile, profile_params, t, theta, theta_dot, theta_ddot, tau_target = prepare_trajectory(args)
     if args.adaptive_model:
         tau_spring, model_metadata = adaptive_spring_torque_over_time(
             network,
@@ -514,6 +588,7 @@ def run_single(args):
             theta_ddot,
             tau_target,
             args.adaptive_model,
+            profile_params=profile_params,
         )
         model_name = Path(args.adaptive_model).stem
     else:
@@ -565,6 +640,7 @@ def run_batch(args):
             samples=args.samples,
             amplitude_deg=params["amplitude_deg"],
             frequency_hz=params["frequency_hz"],
+            profile_params=params,
         )
         result["family"] = params["family"]
         rows.append(
@@ -614,8 +690,7 @@ def main():
     parser.add_argument("--trajectory", default=None, help="Optional CSV trajectory file.")
     parser.add_argument(
         "--profile",
-        default="rough_terrain",
-        choices=["flat_terrain", "rough_terrain", "mixed_terrain"],
+        default="piecewise_0000",
         help="Target torque profile to use if tau_target is not supplied.",
     )
     parser.add_argument("--duration", type=float, default=5.0, help="Synthetic trajectory duration in seconds.")

@@ -10,11 +10,11 @@ NODE_COLORS = {
 }
 
 
-def plot_network(network, theta, forces=None, show_forces=True, ax=None):
+def plot_network(network, theta, forces=None, show_forces=True, ax=None, relax_internal=False):
     if ax is None:
         _, ax = plt.subplots(figsize=(7, 7))
 
-    network.update_positions(theta)
+    network.update_positions(theta, relax_internal=relax_internal)
 
     # Springs are drawn first so nodes and limbs remain easy to read.
     for spring in network.springs:
@@ -66,7 +66,8 @@ def plot_network(network, theta, forces=None, show_forces=True, ax=None):
             )
 
     ax.scatter([0.0], [0.0], s=180, color="black", zorder=5, label="joint")
-    ax.set_title(f"Spring network at theta = {np.degrees(theta):.1f} deg")
+    suffix = " relaxed" if relax_internal else ""
+    ax.set_title(f"Spring network at theta = {np.degrees(theta):.1f} deg{suffix}")
     ax.set_aspect("equal", adjustable="box")
     ax.set_xlim(-2.2, 2.2)
     ax.set_ylim(-2.0, 2.0)

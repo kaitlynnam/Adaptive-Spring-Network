@@ -51,6 +51,7 @@ def run_model_batch(args, model_name, adaptive_model_path, profile_params):
             samples=args.samples,
             amplitude_deg=params["amplitude_deg"],
             frequency_hz=params["frequency_hz"],
+            profile_params=params,
         )
         result["model"] = model_name
         result["family"] = params["family"]

@@ -11,7 +11,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "01_core_model"))
 from topology_loader import DEFAULT_TOPOLOGY_PATH, load_network
 
 
-def run_demo(topology_path=DEFAULT_TOPOLOGY_PATH):
+def run_demo(topology_path=DEFAULT_TOPOLOGY_PATH, relax_internal=True):
     network, topology = load_network(topology_path)
     angles = np.radians([-35.0, 0.0, 35.0])
 
@@ -20,11 +20,12 @@ def run_demo(topology_path=DEFAULT_TOPOLOGY_PATH):
 
     print(f"Loaded topology: {topology['name']}")
     print(f"Nodes: {len(network.nodes)} | Springs: {len(network.springs)}")
+    print(f"Internal-node relaxation: {'enabled' if relax_internal else 'disabled'}")
     print()
 
     fig, axes = plt.subplots(1, len(angles), figsize=(16, 5.5), constrained_layout=True)
     for ax, theta in zip(axes, angles):
-        forces, spring_results, torque = network.evaluate(theta)
+        forces, spring_results, torque = network.evaluate(theta, relax_internal=relax_internal)
         print(f"theta = {np.degrees(theta):6.1f} deg | limb-2 spring torque = {torque: .4f} N*m")
         for result in spring_results:
             spring = result["spring"]
@@ -34,7 +35,7 @@ def run_demo(topology_path=DEFAULT_TOPOLOGY_PATH):
                 f"stretch={result['stretch']:.3f}"
             )
         print()
-        network.plot(theta, forces=forces, show_forces=True, ax=ax)
+        network.plot(theta, forces=forces, show_forces=True, ax=ax, relax_internal=relax_internal)
 
     # Saving the figure makes the first version easy to inspect in any environment.
     figure_path = output_dir / "spring_network_demo.png"
@@ -48,7 +49,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--topology",
         default=DEFAULT_TOPOLOGY_PATH,
-        help="Path to a topology JSON file.",
+        help="Path to a topology JSON file, for example spring-network/topologies/internal_fan_model.json.",
+    )
+    parser.add_argument(
+        "--no-relax-internal",
+        action="store_true",
+        help="Plot the unrelaxed geometry instead of relaxed internal-node positions.",
     )
     args = parser.parse_args()
-    run_demo(args.topology)
+    run_demo(args.topology, relax_internal=not args.no_relax_internal)

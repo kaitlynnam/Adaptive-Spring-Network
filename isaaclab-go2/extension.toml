@@ -1,0 +1,13 @@
+[package]
+title = "Adaptive Spring Network Go2"
+description = "Unitree Go2 simulation workspace for Isaac Lab experiments."
+version = "0.1.0"
+category = "robotics"
+keywords = ["isaaclab", "unitree", "go2", "quadruped"]
+
+[dependencies]
+"isaaclab" = {}
+"isaaclab_assets" = {}
+
+[[python.module]]
+name = "asn_go2"

@@ -191,5 +191,12 @@ class SpringNetwork:
         torque = self.compute_torque(forces)
         return forces, spring_results, torque
 
-    def plot(self, theta, forces=None, show_forces=True, ax=None):
-        return plot_network(self, theta, forces=forces, show_forces=show_forces, ax=ax)
+    def plot(self, theta, forces=None, show_forces=True, ax=None, relax_internal=False):
+        return plot_network(
+            self,
+            theta,
+            forces=forces,
+            show_forces=show_forces,
+            ax=ax,
+            relax_internal=relax_internal,
+        )
