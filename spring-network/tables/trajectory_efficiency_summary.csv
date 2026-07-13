@@ -1,5 +1,5 @@
-group,model,topology,cases,duration_s,samples,average_baseline_motor_energy_j,average_motor_energy_with_spring_j,average_energy_saved_j,average_offload_pct,average_mean_abs_torque_error_nm,average_max_abs_torque_error_nm
-overall,adaptive_trained_model,baseline_model,30,5.0000,300,135.7909,39.4596,96.3313,72.6189,10.6967,29.2062
-flat_terrain,adaptive_trained_model,baseline_model,10,5.0000,300,60.5755,14.7559,45.8195,76.7821,5.2037,13.6173
-mixed_terrain,adaptive_trained_model,baseline_model,10,5.0000,300,133.2937,33.9989,99.2948,74.2185,8.7328,25.7422
-rough_terrain,adaptive_trained_model,baseline_model,10,5.0000,300,213.5036,69.6239,143.8797,66.8561,18.1535,48.2591
+group,model,topology,cases,duration_s,samples,motoring_efficiency,regen_efficiency,average_baseline_energy_burden_j,average_energy_burden_with_spring_j,average_baseline_net_battery_energy_j,average_net_battery_energy_with_spring_j,average_baseline_braking_energy_j,average_braking_energy_with_spring_j,average_baseline_regenerated_energy_j,average_regenerated_energy_with_spring_j,average_energy_saved_j,average_offload_pct,average_mean_abs_torque_error_nm,average_max_abs_torque_error_nm
+overall,fixed_stiffness,baseline_model,3,5.0000,20,0.8500,0.6000,117.8881,83.0748,-133.3805,-96.5268,251.2686,179.6016,150.7611,107.7609,34.8133,35.1184,22.2084,42.4088
+flat_terrain,fixed_stiffness,baseline_model,1,5.0000,20,0.8500,0.6000,36.1355,17.4612,-24.6311,-10.0380,60.7666,27.4992,36.4600,16.4995,18.6743,51.6786,7.7265,10.5364
+mixed_terrain,fixed_stiffness,baseline_model,1,5.0000,20,0.8500,0.6000,161.0622,98.6933,-150.9752,-96.6553,312.0374,195.3486,187.2225,117.2092,62.3689,38.7235,24.9247,51.2958
+rough_terrain,fixed_stiffness,baseline_model,1,5.0000,20,0.8500,0.6000,156.4664,133.0699,-224.5352,-182.8870,381.0016,315.9569,228.6010,189.5741,23.3966,14.9531,33.9739,65.3941

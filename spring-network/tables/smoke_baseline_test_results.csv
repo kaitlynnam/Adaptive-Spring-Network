@@ -1,0 +1,4 @@
+profile,family,roughness_score,rmse_nm,offload_pct,mean_abs_residual_nm,peak_abs_residual_nm
+rough_terrain_0000,rough_terrain,0.604037,14.255755,0.000000,12.873635,24.997282
+flat_terrain_0000,flat_terrain,0.402660,13.955911,59.682164,12.537016,20.076845
+mixed_terrain_0000,mixed_terrain,0.593376,6.692222,0.000000,6.284259,10.260752

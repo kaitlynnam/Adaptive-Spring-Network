@@ -23,9 +23,15 @@ from adaptive_model import (
     save_model,
     spring_torque_basis,
 )
+from energy_accounting import (
+    DEFAULT_MOTORING_EFFICIENCY,
+    DEFAULT_REGEN_EFFICIENCY,
+    numpy_power_accounting,
+    torch_energy_burden_power,
+    validate_efficiencies,
+)
 from profile_generator import (
     ANGLE_LIMIT_RAD,
-    DEFAULT_TORQUE_LIMIT_NM,
     TERRAIN_FAMILIES,
     generate_profile_parameters,
     generate_terrain_profile_parameters,
@@ -34,11 +40,41 @@ from profile_generator import (
 from topology_loader import DEFAULT_TOPOLOGY_PATH, load_network
 
 
+TRAINING_NETWORK_PRESETS = {
+    "baseline": {
+        "topology": PROJECT_ROOT / "topologies" / "baseline_model.json",
+        "output_name": "adaptive_trained_baseline_model",
+    },
+    "fan": {
+        "topology": PROJECT_ROOT / "topologies" / "internal_fan_model.json",
+        "output_name": "adaptive_trained_internal_fan_model",
+    },
+}
+
+
 def integrate_trapezoid(y, x):
     trapezoid = getattr(np, "trapezoid", None)
     if trapezoid is not None:
         return trapezoid(y, x)
     return np.trapz(y, x)
+
+
+def causal_derivative(values, t):
+    """Differentiate using only the current and previous samples."""
+    values = np.asarray(values, dtype=float)
+    t = np.asarray(t, dtype=float)
+    if values.shape != t.shape:
+        raise ValueError("values and t must have the same shape.")
+
+    derivative = np.zeros_like(values)
+    if len(values) < 2:
+        return derivative
+
+    dt = np.diff(t)
+    if np.any(dt <= 0.0):
+        raise ValueError("Trajectory time values must be strictly increasing.")
+    derivative[1:] = np.diff(values) / dt
+    return derivative
 
 
 def smooth_noise(rng, samples, scale):
@@ -83,8 +119,8 @@ def generate_motion_trajectory(params, duration, samples, seed):
     theta += smooth_noise(rng, samples, params["noise_scale"])
 
     theta = np.clip(theta, -ANGLE_LIMIT_RAD, ANGLE_LIMIT_RAD)
-    theta_dot = np.gradient(theta, t)
-    theta_ddot = np.gradient(theta_dot, t)
+    theta_dot = causal_derivative(theta, t)
+    theta_ddot = causal_derivative(theta_dot, t)
     tau_target = profile_torque(theta, params)
     return t, theta, theta_dot, theta_ddot, tau_target
 
@@ -107,22 +143,6 @@ def motion_window_features(theta, theta_dot, theta_ddot, window_size, scales):
             window = np.vstack([pad, window])
         rows.append(window.reshape(-1))
     return np.asarray(rows, dtype=float)
-
-
-def profile_parameter_features(params, samples):
-    """Repeat normalized torque-profile knot parameters for every trajectory sample."""
-    theta_features = np.asarray(params["knots_theta"], dtype=float) / ANGLE_LIMIT_RAD
-    tau_features = np.asarray(params["knots_tau"], dtype=float) / DEFAULT_TORQUE_LIMIT_NM
-    features = np.concatenate((theta_features, tau_features))
-    return np.tile(features, (samples, 1))
-
-
-def trajectory_features(theta, theta_dot, theta_ddot, params, window_size, scales, include_profile=True):
-    motion_features = motion_window_features(theta, theta_dot, theta_ddot, window_size, scales)
-    if not include_profile:
-        return motion_features
-    profile_features = profile_parameter_features(params, len(theta))
-    return np.hstack((motion_features, profile_features))
 
 
 def print_progress(label, current, total, interval):
@@ -179,9 +199,10 @@ def normalization_scales(profile_params, duration, samples, seed, window_size, p
     theta_values = []
     theta_dot_values = []
     theta_ddot_values = []
+    torque_values = []
     total = len(profile_params)
     for profile_index, params in enumerate(profile_params):
-        _, theta, theta_dot, theta_ddot, _ = generate_motion_trajectory(
+        _, theta, theta_dot, theta_ddot, tau_target = generate_motion_trajectory(
             params,
             duration,
             samples,
@@ -190,6 +211,7 @@ def normalization_scales(profile_params, duration, samples, seed, window_size, p
         theta_values.append(theta)
         theta_dot_values.append(theta_dot)
         theta_ddot_values.append(theta_ddot)
+        torque_values.append(tau_target)
         print_progress("normalization trajectories", profile_index + 1, total, progress_interval)
 
     def robust_scale(values, fallback):
@@ -201,6 +223,7 @@ def normalization_scales(profile_params, duration, samples, seed, window_size, p
         "theta": robust_scale(theta_values, np.deg2rad(1.0)),
         "theta_dot": robust_scale(theta_dot_values, 0.1),
         "theta_ddot": robust_scale(theta_ddot_values, 0.5),
+        "torque": robust_scale(torque_values, 1.0),
         "window_size": int(window_size),
     }
 
@@ -216,7 +239,6 @@ def build_dataset(
     seed,
     progress_label=None,
     progress_interval=100,
-    include_profile=True,
 ):
     rows = []
     targets = []
@@ -235,17 +257,7 @@ def build_dataset(
             samples,
             seed + profile_index,
         )
-        rows.append(
-            trajectory_features(
-                theta,
-                theta_dot,
-                theta_ddot,
-                params,
-                window_size,
-                scales,
-                include_profile=include_profile,
-            )
-        )
+        rows.append(motion_window_features(theta, theta_dot, theta_ddot, window_size, scales))
         targets.append(tau_target)
         basis_rows.append(interpolate_basis(basis_by_angle, angles_rad, theta))
         profile_indices.append(np.full(samples, profile_index, dtype=int))
@@ -266,6 +278,8 @@ def build_dataset(
         "theta_dot": np.concatenate(theta_dot_rows),
         "theta_ddot": np.concatenate(theta_ddot_rows),
         "samples_per_profile": int(samples),
+        "window_size": int(window_size),
+        "torque_scale": float(scales["torque"]),
     }
 
 
@@ -282,6 +296,8 @@ def train_model(
     progress_interval,
     device="auto",
     energy_weight=0.0,
+    motoring_efficiency=DEFAULT_MOTORING_EFFICIENCY,
+    regen_efficiency=DEFAULT_REGEN_EFFICIENCY,
 ):
     selected_device = select_training_device(device)
     if torch is not None:
@@ -298,20 +314,11 @@ def train_model(
             progress_interval,
             selected_device,
             energy_weight,
+            motoring_efficiency,
+            regen_efficiency,
         )
-    if energy_weight:
-        print("Warning: energy_weight is only applied by the PyTorch training path.")
-    return train_model_numpy(
-        dataset,
-        initial_k,
-        hidden_dim,
-        iterations,
-        learning_rate,
-        min_k,
-        max_k,
-        stiffness_weight,
-        seed,
-        progress_interval,
+    raise RuntimeError(
+        "PyTorch is required for causal torque-history training. Install torch in this environment."
     )
 
 
@@ -410,6 +417,40 @@ def train_model_numpy(
     return best_model, history
 
 
+def torch_causal_torque_rollout(parameters, features, basis, target, dataset, min_k, max_k):
+    """Roll forward using only torque values realized before each prediction."""
+    samples = dataset["samples_per_profile"]
+    profiles = len(dataset["target"]) // samples
+    window_size = dataset["window_size"]
+    torque_scale = max(dataset["torque_scale"], 1e-9)
+    motion = features.reshape(profiles, samples, -1)
+    basis = basis.reshape(profiles, samples, -1)
+    target = target.reshape(profiles, samples)
+    history = torch.zeros((profiles, window_size, 3), dtype=features.dtype, device=features.device)
+    predicted_rows = []
+    stiffness_rows = []
+
+    for sample_index in range(samples):
+        inputs = torch.cat((motion[:, sample_index, :], history.reshape(profiles, -1)), dim=1)
+        hidden = torch.tanh(inputs @ parameters["w1"] + parameters["b1"])
+        logits = hidden @ parameters["w2"] + parameters["b2"]
+        sig = torch.sigmoid(torch.clamp(logits, -50.0, 50.0))
+        stiffness = min_k + (max_k - min_k) * sig
+        spring_torque = torch.sum(basis[:, sample_index, :] * stiffness, dim=1)
+        motor_torque = target[:, sample_index] - spring_torque
+        predicted_rows.append(spring_torque)
+        stiffness_rows.append(stiffness)
+
+        realized = torch.stack(
+            (target[:, sample_index], spring_torque, motor_torque), dim=1
+        ) / torque_scale
+        history = torch.cat((history[:, 1:, :], realized.detach().unsqueeze(1)), dim=1)
+
+    predicted = torch.stack(predicted_rows, dim=1).reshape(-1)
+    stiffness = torch.stack(stiffness_rows, dim=1).reshape(-1, basis.shape[2])
+    return predicted, stiffness
+
+
 def train_model_torch(
     dataset,
     initial_k,
@@ -423,6 +464,8 @@ def train_model_torch(
     progress_interval,
     device,
     energy_weight,
+    motoring_efficiency,
+    regen_efficiency,
 ):
     print(f"Training device: {device_label(device)}")
     torch.manual_seed(seed)
@@ -432,7 +475,7 @@ def train_model_torch(
     rng = np.random.default_rng(seed)
     initial_model = initialize_model(
         rng,
-        dataset["features"].shape[1],
+        dataset["features"].shape[1] + 3 * dataset["window_size"],
         hidden_dim,
         dataset["basis"].shape[1],
         initial_k,
@@ -466,15 +509,17 @@ def train_model_torch(
 
     for iteration in range(1, iterations + 1):
         optimizer.zero_grad(set_to_none=True)
-        hidden = torch.tanh(features @ parameters["w1"] + parameters["b1"])
-        logits = hidden @ parameters["w2"] + parameters["b2"]
-        sig = torch.sigmoid(torch.clamp(logits, -50.0, 50.0))
-        stiffness = min_k + (max_k - min_k) * sig
-        predicted = torch.sum(basis * stiffness, dim=1)
+        predicted, stiffness = torch_causal_torque_rollout(
+            parameters, features, basis, target, dataset, min_k, max_k
+        )
         error = predicted - target
         mse = torch.mean(error**2)
-        baseline_power = torch.relu(target * theta_dot)
-        assisted_power = torch.relu((target - predicted) * theta_dot)
+        baseline_power = torch_energy_burden_power(
+            target * theta_dot, motoring_efficiency, regen_efficiency
+        )
+        assisted_power = torch_energy_burden_power(
+            (target - predicted) * theta_dot, motoring_efficiency, regen_efficiency
+        )
         baseline_power_mean = torch.clamp(torch.mean(baseline_power), min=1e-9)
         energy_ratio = torch.mean(assisted_power) / baseline_power_mean
         energy_penalty = energy_weight * mse.detach() * energy_ratio
@@ -684,6 +729,76 @@ def torch_torque_batch(topology, theta, stiffness, relax_internal, relaxation_st
     return torque
 
 
+def model_uses_torque_history(model, dataset):
+    expected = dataset["features"].shape[1] + 3 * dataset["window_size"]
+    return model["w1"].shape[0] == expected
+
+
+def recurrent_dataset_with_mechanics(
+    model,
+    dataset,
+    topology_path,
+    min_k,
+    max_k,
+    relax_internal,
+    mechanics_backend,
+    device,
+    relaxation_steps,
+):
+    """Replay profiles causally using previously realized target/spring/motor torque."""
+    samples = dataset["samples_per_profile"]
+    profile_count = len(dataset["theta"]) // samples
+    window_size = dataset["window_size"]
+    torque_scale = max(dataset["torque_scale"], 1e-9)
+    motion = dataset["features"].reshape(profile_count, samples, -1)
+    target = dataset["target"].reshape(profile_count, samples)
+    theta = dataset["theta"].reshape(profile_count, samples)
+    history = np.zeros((profile_count, window_size, 3), dtype=float)
+    predicted = np.empty((profile_count, samples), dtype=float)
+    stiffness = np.empty((profile_count, samples, len(load_network(topology_path)[0].springs)), dtype=float)
+    selected_backend = select_mechanics_backend(mechanics_backend)
+
+    if selected_backend == "torch":
+        selected_device = select_training_device(device)
+        torch_device = torch.device(selected_device)
+        network, _ = load_network(topology_path)
+        topology = torch_topology_data(network, torch_device)
+    else:
+        networks = [load_network(topology_path)[0] for _ in range(profile_count)]
+
+    for sample_index in range(samples):
+        inputs = np.hstack((motion[:, sample_index, :], history.reshape(profile_count, -1)))
+        stiffness_step, _ = forward(model, inputs, min_k, max_k)
+        stiffness[:, sample_index, :] = stiffness_step
+
+        if selected_backend == "torch":
+            theta_step = torch.as_tensor(theta[:, sample_index], dtype=torch.float32, device=torch_device)
+            stiffness_tensor = torch.as_tensor(stiffness_step, dtype=torch.float32, device=torch_device)
+            torque_step = torch_torque_batch(
+                topology,
+                theta_step,
+                stiffness_tensor,
+                relax_internal=relax_internal,
+                relaxation_steps=relaxation_steps,
+                relaxation_lr=0.03,
+            ).detach().cpu().numpy()
+        else:
+            torque_step = np.empty(profile_count, dtype=float)
+            for profile_index, network in enumerate(networks):
+                for spring, value in zip(network.springs, stiffness_step[profile_index]):
+                    spring.stiffness_k = float(value)
+                _, _, torque_step[profile_index] = network.evaluate(
+                    float(theta[profile_index, sample_index]), relax_internal=relax_internal
+                )
+
+        predicted[:, sample_index] = torque_step
+        motor_step = target[:, sample_index] - torque_step
+        realized = np.stack((target[:, sample_index], torque_step, motor_step), axis=1) / torque_scale
+        history = np.concatenate((history[:, 1:, :], realized[:, None, :]), axis=1)
+
+    return predicted.reshape(-1), stiffness.reshape(-1, stiffness.shape[2])
+
+
 def predict_dataset_relaxed(
     model,
     dataset,
@@ -697,6 +812,18 @@ def predict_dataset_relaxed(
     mechanics_batch_size=8192,
     relaxation_steps=80,
 ):
+    if model_uses_torque_history(model, dataset):
+        return recurrent_dataset_with_mechanics(
+            model,
+            dataset,
+            topology_path,
+            min_k,
+            max_k,
+            relax_internal=True,
+            mechanics_backend=mechanics_backend,
+            device=device,
+            relaxation_steps=relaxation_steps,
+        )
     stiffness = stiffness_schedule_from_model(model, dataset, min_k, max_k)
     predicted = stiffness_schedule_torque(
         dataset,
@@ -727,6 +854,18 @@ def predict_dataset_with_mechanics(
     mechanics_batch_size=8192,
     relaxation_steps=80,
 ):
+    if model_uses_torque_history(model, dataset):
+        return recurrent_dataset_with_mechanics(
+            model,
+            dataset,
+            topology_path,
+            min_k,
+            max_k,
+            relax_internal=relax_internal,
+            mechanics_backend=mechanics_backend,
+            device=device,
+            relaxation_steps=relaxation_steps,
+        )
     stiffness = stiffness_schedule_from_model(model, dataset, min_k, max_k)
     return stiffness_schedule_torque(
         dataset,
@@ -837,18 +976,47 @@ def fixed_stiffness_relaxed_torque(
     )
 
 
-def energy_offload(t, theta_dot, target, predicted):
+def energy_accounting_metrics(
+    t,
+    theta_dot,
+    target,
+    predicted,
+    motoring_efficiency=DEFAULT_MOTORING_EFFICIENCY,
+    regen_efficiency=DEFAULT_REGEN_EFFICIENCY,
+):
     residual = target - predicted
-    baseline_power = np.maximum(0.0, target * theta_dot)
-    assisted_power = np.maximum(0.0, residual * theta_dot)
-    baseline_energy = float(integrate_trapezoid(baseline_power, t))
-    assisted_energy = float(integrate_trapezoid(assisted_power, t))
-    if abs(baseline_energy) < 1e-12:
-        return 0.0
-    return 100.0 * (baseline_energy - assisted_energy) / baseline_energy
+    baseline = numpy_power_accounting(
+        target * theta_dot, motoring_efficiency, regen_efficiency
+    )
+    assisted = numpy_power_accounting(
+        residual * theta_dot, motoring_efficiency, regen_efficiency
+    )
+
+    def energy(accounting, name):
+        return float(integrate_trapezoid(accounting[name], t))
+
+    baseline_burden = energy(baseline, "energy_burden_power")
+    assisted_burden = energy(assisted, "energy_burden_power")
+    offload = 0.0
+    if abs(baseline_burden) >= 1e-12:
+        offload = 100.0 * (baseline_burden - assisted_burden) / baseline_burden
+    return {
+        "offload_pct": offload,
+        "baseline_energy_burden_j": baseline_burden,
+        "energy_burden_with_spring_j": assisted_burden,
+        "net_battery_energy_with_spring_j": energy(assisted, "net_battery_power"),
+        "braking_energy_with_spring_j": energy(assisted, "braking_mechanical_power"),
+        "regenerated_energy_with_spring_j": energy(assisted, "regenerated_power"),
+    }
 
 
-def summarize_profiles(profile_params, dataset, predicted):
+def summarize_profiles(
+    profile_params,
+    dataset,
+    predicted,
+    motoring_efficiency=DEFAULT_MOTORING_EFFICIENCY,
+    regen_efficiency=DEFAULT_REGEN_EFFICIENCY,
+):
     rows = []
     samples = dataset["samples_per_profile"]
     for profile_index, params in enumerate(profile_params):
@@ -857,17 +1025,21 @@ def summarize_profiles(profile_params, dataset, predicted):
         target = dataset["target"][start:stop]
         pred = predicted[start:stop]
         rmse = float(np.sqrt(np.mean((pred - target) ** 2)))
+        energy_metrics = energy_accounting_metrics(
+            dataset["t"][start:stop],
+            dataset["theta_dot"][start:stop],
+            target,
+            pred,
+            motoring_efficiency,
+            regen_efficiency,
+        )
         rows.append(
             {
                 "profile": params["name"],
                 "family": params["family"],
+                "roughness_score": float(params.get("roughness_score", np.nan)),
                 "rmse_nm": rmse,
-                "offload_pct": energy_offload(
-                    dataset["t"][start:stop],
-                    dataset["theta_dot"][start:stop],
-                    target,
-                    pred,
-                ),
+                **energy_metrics,
                 "mean_abs_residual_nm": float(np.mean(np.abs(target - pred))),
                 "peak_abs_residual_nm": float(np.max(np.abs(target - pred))),
             }
@@ -959,7 +1131,20 @@ def write_model_comparison_rows(path, rows):
 
 def write_profile_rows(path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
-    columns = ["profile", "family", "rmse_nm", "offload_pct", "mean_abs_residual_nm", "peak_abs_residual_nm"]
+    columns = [
+        "profile",
+        "family",
+        "roughness_score",
+        "rmse_nm",
+        "offload_pct",
+        "baseline_energy_burden_j",
+        "energy_burden_with_spring_j",
+        "net_battery_energy_with_spring_j",
+        "braking_energy_with_spring_j",
+        "regenerated_energy_with_spring_j",
+        "mean_abs_residual_nm",
+        "peak_abs_residual_nm",
+    ]
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=columns)
         writer.writeheader()
@@ -1013,7 +1198,7 @@ def write_torque_trace_rows(path, profile_params, dataset, predicted, stiffness,
                 writer.writerow(row)
 
 
-def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, duration, samples, window_size, scales, min_k, max_k, seed, topology_path, include_profile=True):
+def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, duration, samples, window_size, scales, min_k, max_k, seed, topology_path):
     path.parent.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(2, 3, figsize=(14, 8), constrained_layout=True)
     axes = axes.ravel()
@@ -1028,10 +1213,15 @@ def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, dur
             window_size,
             scales,
             seed + profile_index,
-            include_profile=include_profile,
         )
-        stiffness = stiffness_schedule_from_model(model, dataset, min_k, max_k)
-        predicted = relaxed_torque_from_stiffness(network, dataset["theta"], stiffness)
+        predicted, _ = predict_dataset_relaxed(
+            model,
+            dataset,
+            topology_path,
+            min_k,
+            max_k,
+            mechanics_backend="scipy",
+        )
         ax.plot(dataset["t"], dataset["target"], "k--", linewidth=1.8, label="target")
         ax.plot(dataset["t"], predicted, linewidth=1.5, label="learned")
         ax.set_title(f"{params['family']} / {params['name']}")
@@ -1083,34 +1273,51 @@ def plot_training_convergence(path, history, train_baseline_rmse, test_baseline_
 
 def main():
     parser = argparse.ArgumentParser(description="Train adaptive spring stiffnesses on generated piecewise-linear torque profiles.")
-    parser.add_argument("--topology", default=DEFAULT_TOPOLOGY_PATH, help="Starting topology JSON file.")
+    parser.add_argument(
+        "--network",
+        choices=sorted(TRAINING_NETWORK_PRESETS),
+        default="fan",
+        help="Topology preset to train (default: fan).",
+    )
+    parser.add_argument("--topology", default=None, help="Custom topology JSON; overrides the network preset.")
     parser.add_argument(
         "--profile-set",
         choices=["terrain", "arbitrary"],
         default="terrain",
         help="Use separated terrain-family piecewise profiles or arbitrary random piecewise profiles.",
     )
-    parser.add_argument("--profiles-per-family", type=int, default=4000, help="Training profiles per terrain family.")
+    parser.add_argument("--profiles-per-family", type=int, default=2000, help="Training profiles per terrain family.")
     parser.add_argument("--test-profiles-per-family", type=int, default=400, help="Held-out test profiles per terrain family.")
     parser.add_argument("--train-profiles", type=int, default=12000, help="Training trajectories for --profile-set arbitrary.")
     parser.add_argument("--test-profiles", type=int, default=1200, help="Held-out trajectories for --profile-set arbitrary.")
     parser.add_argument("--duration", type=float, default=5.0, help="Trajectory duration in seconds.")
     parser.add_argument("--samples", type=int, default=160, help="Samples per generated trajectory.")
     parser.add_argument("--window-size", type=int, default=10, help="Recent motion samples used as neural-network input.")
-    parser.add_argument(
-        "--input-mode",
-        choices=["profile", "motion"],
-        default="profile",
-        help="Use motion plus target knots, or causal motion history only.",
-    )
-    parser.add_argument("--output-name", default="adaptive_trained_model", help="Stem used for model, table, and plot outputs.")
+    parser.add_argument("--output-name", default=None, help="Output stem; defaults to a topology-specific model name.")
     parser.add_argument("--iterations", type=int, default=5000, help="Gradient descent iterations.")
     parser.add_argument("--learning-rate", type=float, default=0.01, help="Adam step size.")
     parser.add_argument("--hidden-dim", type=int, default=256, help="Hidden units in the neural stiffness model.")
     parser.add_argument("--min-stiffness", type=float, default=1.0, help="Minimum learned stiffness in N/m.")
     parser.add_argument("--max-stiffness", type=float, default=800.0, help="Maximum learned stiffness in N/m.")
     parser.add_argument("--stiffness-weight", type=float, default=2e-4, help="Penalty for moving far from baseline stiffnesses.")
-    parser.add_argument("--energy-weight", type=float, default=0.35, help="Weight for reducing positive residual motor power during training.")
+    parser.add_argument(
+        "--energy-weight",
+        type=float,
+        default=0.35,
+        help="Weight for reducing bidirectional motor energy burden during training.",
+    )
+    parser.add_argument(
+        "--motoring-efficiency",
+        type=float,
+        default=DEFAULT_MOTORING_EFFICIENCY,
+        help="Motor/drive efficiency while delivering positive shaft power (default: 0.85).",
+    )
+    parser.add_argument(
+        "--regen-efficiency",
+        type=float,
+        default=DEFAULT_REGEN_EFFICIENCY,
+        help="Fraction of mechanical braking energy returned electrically (default: 0.60).",
+    )
     parser.add_argument("--progress-interval", type=int, default=100, help="Print progress every N profiles or optimizer iterations.")
     parser.add_argument(
         "--device",
@@ -1121,15 +1328,20 @@ def main():
     parser.add_argument(
         "--mechanics-backend",
         choices=["auto", "torch", "scipy"],
-        default="auto",
-        help="Mechanics backend for baseline/adaptive evaluation. 'auto' uses torch when available.",
+        default="torch",
+        help="Mechanics backend for baseline/adaptive evaluation (default: torch). Use scipy explicitly as a fallback.",
     )
     parser.add_argument("--mechanics-batch-size", type=int, default=8192, help="Samples per GPU mechanics batch.")
     parser.add_argument("--relaxation-steps", type=int, default=80, help="PyTorch internal-node relaxation steps per mechanics batch.")
     parser.add_argument("--seed", type=int, default=11, help="Random seed.")
     args = parser.parse_args()
+    validate_efficiencies(args.motoring_efficiency, args.regen_efficiency)
+    preset = TRAINING_NETWORK_PRESETS[args.network]
+    if args.topology is None:
+        args.topology = preset["topology"]
+    if args.output_name is None:
+        args.output_name = preset["output_name"]
     mechanics_backend = select_mechanics_backend(args.mechanics_backend)
-    include_profile = args.input_mode == "profile"
 
     network, topology = load_network(args.topology)
     angles_rad = np.radians(ANGLE_DEGREES)
@@ -1164,7 +1376,6 @@ def main():
         args.seed + 20_000,
         progress_label="training dataset profiles",
         progress_interval=args.progress_interval,
-        include_profile=include_profile,
     )
     test_dataset = build_dataset(
         test_params,
@@ -1177,7 +1388,6 @@ def main():
         args.seed + 30_000,
         progress_label="test dataset profiles",
         progress_interval=args.progress_interval,
-        include_profile=include_profile,
     )
 
     baseline_fixed_train = fixed_stiffness_relaxed_torque(
@@ -1212,13 +1422,19 @@ def main():
         print(f"Profiles per terrain family: train {args.profiles_per_family} | test {args.test_profiles_per_family}")
     print(f"Training trajectories: {len(train_params)} | test trajectories: {len(test_params)}")
     print(f"Samples per trajectory: {args.samples} | motion window: {args.window_size} samples")
-    feature_description = f"{args.window_size} * theta/theta_dot/theta_ddot"
-    if include_profile:
-        feature_description += " + 5 knot angles + 5 knot torques"
-    print(f"Input mode: {args.input_mode}")
-    print(f"Feature count: {train_dataset['features'].shape[1]} ({feature_description})")
+    feature_description = (
+        f"{args.window_size} * theta/theta_dot/theta_ddot + "
+        f"{args.window_size} * previous target/spring/motor torque"
+    )
+    feature_count = train_dataset["features"].shape[1] + 3 * args.window_size
+    print("Input mode: causal motion and realized torque history")
+    print(f"Feature count: {feature_count} ({feature_description})")
     print("Training torque basis: relaxed internal-node geometry")
     print(f"Reported metrics: full relaxed network evaluation via {mechanics_backend}")
+    print(
+        f"Energy accounting: motoring efficiency {args.motoring_efficiency:.2f} | "
+        f"regeneration efficiency {args.regen_efficiency:.2f}"
+    )
     print(f"Fixed-stiffness baseline train RMSE: {train_baseline_rmse:.4f} N*m")
     print(f"Fixed-stiffness baseline test RMSE:  {test_baseline_rmse:.4f} N*m")
 
@@ -1235,6 +1451,8 @@ def main():
         progress_interval=args.progress_interval,
         device=args.device,
         energy_weight=args.energy_weight,
+        motoring_efficiency=args.motoring_efficiency,
+        regen_efficiency=args.regen_efficiency,
     )
 
     train_pred, train_stiffness = predict_dataset_relaxed(
@@ -1289,11 +1507,18 @@ def main():
         mechanics_batch_size=args.mechanics_batch_size,
         relaxation_steps=args.relaxation_steps,
     )
-    train_rows = summarize_profiles(train_params, train_dataset, train_pred)
-    test_rows = summarize_profiles(test_params, test_dataset, test_pred)
-    baseline_relaxed_test_rows = summarize_profiles(test_params, test_dataset, baseline_fixed_test)
-    baseline_unrelaxed_test_rows = summarize_profiles(test_params, test_dataset, baseline_unrelaxed_test)
-    adaptive_unrelaxed_test_rows = summarize_profiles(test_params, test_dataset, adaptive_unrelaxed_test)
+    energy_args = (args.motoring_efficiency, args.regen_efficiency)
+    train_rows = summarize_profiles(train_params, train_dataset, train_pred, *energy_args)
+    test_rows = summarize_profiles(test_params, test_dataset, test_pred, *energy_args)
+    baseline_relaxed_test_rows = summarize_profiles(
+        test_params, test_dataset, baseline_fixed_test, *energy_args
+    )
+    baseline_unrelaxed_test_rows = summarize_profiles(
+        test_params, test_dataset, baseline_unrelaxed_test, *energy_args
+    )
+    adaptive_unrelaxed_test_rows = summarize_profiles(
+        test_params, test_dataset, adaptive_unrelaxed_test, *energy_args
+    )
     model_comparison_rows = [
         aggregate_profile_rows("fixed_baseline", "relaxed", baseline_relaxed_test_rows),
         aggregate_profile_rows("fixed_baseline", "unrelaxed", baseline_unrelaxed_test_rows),
@@ -1322,16 +1547,17 @@ def main():
         output_name,
         args.min_stiffness,
         args.max_stiffness,
-        feature_type="motion_window_profile" if include_profile else "motion_window",
+        feature_type="motion_torque_window",
         window_size=args.window_size,
         theta_scale=scales["theta"],
         theta_dot_scale=scales["theta_dot"],
         theta_ddot_scale=scales["theta_ddot"],
-        profile_angle_scale=ANGLE_LIMIT_RAD,
-        profile_torque_scale=DEFAULT_TORQUE_LIMIT_NM,
+        torque_scale=scales["torque"],
         training_device=select_training_device(args.device),
         hidden_dim=args.hidden_dim,
         energy_weight=args.energy_weight,
+        motoring_efficiency=args.motoring_efficiency,
+        regen_efficiency=args.regen_efficiency,
         profile_set=args.profile_set,
         profiles_per_family=args.profiles_per_family if args.profile_set == "terrain" else 0,
         test_profiles_per_family=args.test_profiles_per_family if args.profile_set == "terrain" else 0,
@@ -1359,7 +1585,6 @@ def main():
         args.max_stiffness,
         args.seed + 40_000,
         args.topology,
-        include_profile=include_profile,
     )
     plot_training_convergence(
         convergence_path,

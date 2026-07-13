@@ -11,20 +11,66 @@ sys.path.insert(0, str(PROJECT_ROOT / "01_core_model"))
 sys.path.insert(0, str(PROJECT_ROOT / "02_baseline_profiles"))
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
-from adaptive_model import angle_features, forward
+from adaptive_model import forward
+from energy_accounting import (
+    DEFAULT_MOTORING_EFFICIENCY,
+    DEFAULT_REGEN_EFFICIENCY,
+    numpy_power_accounting,
+    validate_efficiencies,
+)
 from profile_generator import (
-    ANGLE_LIMIT_RAD,
-    DEFAULT_TORQUE_LIMIT_NM,
+    TERRAIN_FAMILIES,
     default_profile_named,
+    generate_terrain_profile_parameters,
     profile_torque,
 )
-from train_adaptive_dataset import generate_motion_trajectory, generate_profile_parameters
-from topology_loader import DEFAULT_TOPOLOGY_PATH, load_network
+from train_adaptive_dataset import causal_derivative, generate_motion_trajectory
+from topology_loader import load_network
 
 
 DEFAULT_BATCH_COUNT = 300
+DEFAULT_BATCH_PROFILES_PER_FAMILY = 100
 DEFAULT_BATCH_SEED = 19
-DEFAULT_ADAPTIVE_MODEL_PATH = PROJECT_ROOT / "models" / "adaptive_trained_model.npz"
+DEFAULT_NETWORK_PRESET = "fan"
+NETWORK_PRESETS = {
+    "baseline": {
+        "topology": PROJECT_ROOT / "topologies" / "baseline_model.json",
+        "adaptive_model": PROJECT_ROOT / "models" / "adaptive_trained_baseline_model.npz",
+    },
+    "fan": {
+        "topology": PROJECT_ROOT / "topologies" / "internal_fan_model.json",
+        "adaptive_model": PROJECT_ROOT / "models" / "adaptive_trained_internal_fan_model.npz",
+    },
+}
+
+
+def resolve_network_preset(args):
+    """Resolve a named network to a compatible topology/model pair."""
+    preset = NETWORK_PRESETS[args.network]
+    automatic_model = args.adaptive_model is None and not args.baseline
+    if args.topology is None:
+        args.topology = preset["topology"]
+
+    if args.baseline:
+        args.adaptive_model = None
+    elif args.adaptive_model is None:
+        args.adaptive_model = preset["adaptive_model"]
+
+    if automatic_model:
+        model_path = Path(args.adaptive_model)
+        if not model_path.exists():
+            raise FileNotFoundError(
+                f"The default torque-history model {model_path} does not exist. "
+                f"Train it with --network {args.network} first."
+            )
+        with np.load(model_path, allow_pickle=False) as data:
+            feature_type = str(data["feature_type"]) if "feature_type" in data else ""
+        if feature_type != "motion_torque_window":
+            raise ValueError(
+                f"The default {args.network} model uses {feature_type!r}, not torque history. "
+                f"Retrain it with train_adaptive_dataset.py --network {args.network}."
+            )
+    return args
 
 
 def integrate_trapezoid(y, x):
@@ -37,8 +83,8 @@ def integrate_trapezoid(y, x):
 def synthetic_trajectory(duration, samples, amplitude_deg, frequency_hz):
     t = np.linspace(0.0, duration, samples)
     theta = np.deg2rad(amplitude_deg) * np.sin(2.0 * np.pi * frequency_hz * t)
-    theta_dot = np.gradient(theta, t)
-    theta_ddot = np.gradient(theta_dot, t)
+    theta_dot = causal_derivative(theta, t)
+    theta_ddot = causal_derivative(theta_dot, t)
     return {
         "t": t,
         "theta": theta,
@@ -91,30 +137,6 @@ def generated_target(profile, theta, theta_dot):
     return profile_torque(theta, params)
 
 
-def profile_params_from_trace(profile, theta, tau_target):
-    """Build a five-knot descriptor when a CSV provides target torque directly."""
-    finite = np.isfinite(theta) & np.isfinite(tau_target)
-    if np.count_nonzero(finite) < 2:
-        return default_profile_named(profile)
-
-    order = np.argsort(theta[finite])
-    theta_sorted = theta[finite][order]
-    tau_sorted = tau_target[finite][order]
-    unique_theta, unique_indices = np.unique(theta_sorted, return_index=True)
-    unique_tau = tau_sorted[unique_indices]
-    if len(unique_theta) < 2:
-        return default_profile_named(profile)
-
-    knots_theta = np.linspace(-ANGLE_LIMIT_RAD, ANGLE_LIMIT_RAD, 5)
-    knots_tau = np.interp(knots_theta, unique_theta, unique_tau, left=unique_tau[0], right=unique_tau[-1])
-    return {
-        "name": profile,
-        "family": "piecewise_linear",
-        "knots_theta": knots_theta,
-        "knots_tau": knots_tau,
-    }
-
-
 def prepare_trajectory(args):
     if args.trajectory:
         trajectory = load_trajectory_csv(args.trajectory)
@@ -130,13 +152,13 @@ def prepare_trajectory(args):
     theta = np.asarray(trajectory["theta"], dtype=float)
     theta_dot = trajectory["theta_dot"]
     if theta_dot is None or np.any(~np.isfinite(theta_dot)):
-        theta_dot = np.gradient(theta, t)
+        theta_dot = causal_derivative(theta, t)
     else:
         theta_dot = np.asarray(theta_dot, dtype=float)
 
     theta_ddot = trajectory.get("theta_ddot")
     if theta_ddot is None or np.any(~np.isfinite(theta_ddot)):
-        theta_ddot = np.gradient(theta_dot, t)
+        theta_ddot = causal_derivative(theta_dot, t)
     else:
         theta_ddot = np.asarray(theta_ddot, dtype=float)
 
@@ -144,13 +166,11 @@ def prepare_trajectory(args):
     tau_target = trajectory["tau_target"]
     if tau_target is None or np.any(~np.isfinite(tau_target)):
         tau_target = generated_target(profile, theta, theta_dot)
-        profile_params = default_profile_named(profile)
     else:
         tau_target = np.asarray(tau_target, dtype=float)
-        profile_params = profile_params_from_trace(profile, theta, tau_target)
 
     validate_trajectory(t, theta, theta_dot, theta_ddot, tau_target)
-    return profile, profile_params, t, theta, theta_dot, theta_ddot, tau_target
+    return profile, t, theta, theta_dot, theta_ddot, tau_target
 
 
 def validate_trajectory(t, theta, theta_dot, theta_ddot, tau_target):
@@ -187,6 +207,8 @@ def load_adaptive_model(path):
         for key in ["theta_scale", "theta_dot_scale", "theta_ddot_scale"]:
             if key in data:
                 metadata[key] = float(data[key])
+        if "torque_scale" in data:
+            metadata["torque_scale"] = float(data["torque_scale"])
         for key in ["profile_angle_scale", "profile_torque_scale"]:
             if key in data:
                 metadata[key] = float(data[key])
@@ -213,15 +235,6 @@ def motion_window_features(theta, theta_dot, theta_ddot, metadata):
     return np.asarray(rows, dtype=float)
 
 
-def profile_parameter_features(params, samples, metadata):
-    angle_scale = max(metadata.get("profile_angle_scale", ANGLE_LIMIT_RAD), 1e-9)
-    torque_scale = max(metadata.get("profile_torque_scale", DEFAULT_TORQUE_LIMIT_NM), 1e-9)
-    theta_features = np.asarray(params["knots_theta"], dtype=float) / angle_scale
-    tau_features = np.asarray(params["knots_tau"], dtype=float) / torque_scale
-    features = np.concatenate((theta_features, tau_features))
-    return np.tile(features, (samples, 1))
-
-
 def adaptive_spring_torque_over_time(
     network,
     theta,
@@ -229,51 +242,57 @@ def adaptive_spring_torque_over_time(
     theta_ddot,
     tau_target,
     model_path,
-    profile_params=None,
 ):
     model, metadata = load_adaptive_model(model_path)
     input_dim = model["w1"].shape[0]
     feature_type = metadata.get("feature_type")
 
-    if feature_type in {"motion_window", "motion_window_profile"}:
-        features = motion_window_features(theta, theta_dot, theta_ddot, metadata)
-        if feature_type == "motion_window_profile":
-            if profile_params is None:
-                raise ValueError("motion_window_profile models require profile knot parameters.")
-            features = np.hstack((features, profile_parameter_features(profile_params, len(theta), metadata)))
-        if features.shape[1] != input_dim:
-            raise ValueError(
-                f"{feature_type} model expects {input_dim} inputs, but generated {features.shape[1]}."
-            )
-    elif input_dim == 3:
-        features = angle_features(theta)
-    elif input_dim == 6:
-        max_abs_theta = max(float(np.max(np.abs(theta))), 1e-9)
-        theta_norm = theta / max_abs_theta
-        max_abs_torque = metadata.get("max_abs_torque", max(float(np.max(np.abs(tau_target))), 1e-9))
-        tau_norm = tau_target / max_abs_torque
-        features = np.column_stack(
-            [
-                theta_norm,
-                theta_norm**2,
-                theta_norm**3,
-                tau_norm,
-                np.abs(tau_norm),
-                np.sign(tau_norm),
-            ]
+    if feature_type not in {"motion_window", "motion_torque_window"}:
+        raise ValueError(
+            f"Unsupported adaptive feature type {feature_type!r}. "
+            "Only causal motion-window models are accepted."
         )
-    else:
-        raise ValueError(f"Unsupported adaptive model input dimension {input_dim}.")
-
-    stiffness, _ = forward(model, features, metadata["min_k"], metadata["max_k"])
+    motion_features = motion_window_features(theta, theta_dot, theta_ddot, metadata)
+    if model["w2"].shape[1] != len(network.springs):
+        raise ValueError(
+            f"Adaptive model emits {model['w2'].shape[1]} stiffnesses, but topology has "
+            f"{len(network.springs)} springs. Choose a matched --network preset or model."
+        )
     original_stiffness = np.asarray([spring.stiffness_k for spring in network.springs], dtype=float)
     torques = []
     try:
-        for theta_value, stiffness_row in zip(theta, stiffness):
+        if feature_type == "motion_torque_window":
+            window_size = int(metadata["window_size"])
+            torque_scale = max(metadata.get("torque_scale", np.max(np.abs(tau_target))), 1e-9)
+            torque_history = np.zeros((window_size, 3), dtype=float)
+        elif motion_features.shape[1] != input_dim:
+            raise ValueError(
+                f"motion_window model expects {input_dim} inputs, but generated {motion_features.shape[1]}."
+            )
+
+        for index, theta_value in enumerate(theta):
+            if feature_type == "motion_torque_window":
+                features = np.concatenate((motion_features[index], torque_history.reshape(-1)))[None, :]
+                if features.shape[1] != input_dim:
+                    raise ValueError(
+                        f"motion_torque_window model expects {input_dim} inputs, but generated {features.shape[1]}."
+                    )
+                stiffness_row = forward(
+                    model, features, metadata["min_k"], metadata["max_k"]
+                )[0][0]
+            else:
+                stiffness_row = forward(
+                    model, motion_features[index : index + 1], metadata["min_k"], metadata["max_k"]
+                )[0][0]
             for spring, stiffness_value in zip(network.springs, stiffness_row):
                 spring.stiffness_k = float(stiffness_value)
             _, _, torque = network.evaluate(float(theta_value), relax_internal=True)
             torques.append(torque)
+            if feature_type == "motion_torque_window":
+                realized = np.asarray(
+                    [tau_target[index], torque, tau_target[index] - torque], dtype=float
+                ) / torque_scale
+                torque_history = np.vstack((torque_history[1:], realized))
     finally:
         for spring, stiffness_value in zip(network.springs, original_stiffness):
             spring.stiffness_k = float(stiffness_value)
@@ -282,26 +301,59 @@ def adaptive_spring_torque_over_time(
     return tau_spring, metadata
 
 
-def evaluate_energy(t, tau_target, tau_spring, theta_dot):
+def evaluate_energy(
+    t,
+    tau_target,
+    tau_spring,
+    theta_dot,
+    motoring_efficiency=DEFAULT_MOTORING_EFFICIENCY,
+    regen_efficiency=DEFAULT_REGEN_EFFICIENCY,
+):
+    validate_efficiencies(motoring_efficiency, regen_efficiency)
     residual_torque = tau_target - tau_spring
-    baseline_motor_power = np.maximum(0.0, tau_target * theta_dot)
-    motor_power_with_spring = np.maximum(0.0, residual_torque * theta_dot)
+    baseline = numpy_power_accounting(
+        tau_target * theta_dot, motoring_efficiency, regen_efficiency
+    )
+    assisted = numpy_power_accounting(
+        residual_torque * theta_dot, motoring_efficiency, regen_efficiency
+    )
 
-    baseline_motor_energy = float(integrate_trapezoid(baseline_motor_power, t))
-    motor_energy_with_spring = float(integrate_trapezoid(motor_power_with_spring, t))
-    energy_saved = baseline_motor_energy - motor_energy_with_spring
-    if abs(baseline_motor_energy) < 1e-12:
+    def energy(accounting, name):
+        return float(integrate_trapezoid(accounting[name], t))
+
+    baseline_energy_burden = energy(baseline, "energy_burden_power")
+    energy_burden_with_spring = energy(assisted, "energy_burden_power")
+    energy_saved = baseline_energy_burden - energy_burden_with_spring
+    if abs(baseline_energy_burden) < 1e-12:
         offload_fraction = 0.0
     else:
-        offload_fraction = energy_saved / baseline_motor_energy
+        offload_fraction = energy_saved / baseline_energy_burden
 
     torque_error = tau_target - tau_spring
     return {
         "residual_torque": residual_torque,
-        "baseline_motor_power": baseline_motor_power,
-        "motor_power_with_spring": motor_power_with_spring,
-        "baseline_motor_energy": baseline_motor_energy,
-        "motor_energy_with_spring": motor_energy_with_spring,
+        "baseline_mechanical_power": baseline["mechanical_power"],
+        "motor_mechanical_power": assisted["mechanical_power"],
+        "baseline_energy_burden_power": baseline["energy_burden_power"],
+        "motor_energy_burden_power": assisted["energy_burden_power"],
+        "baseline_electrical_draw_power": baseline["electrical_draw_power"],
+        "motor_electrical_draw_power": assisted["electrical_draw_power"],
+        "baseline_braking_power": baseline["braking_mechanical_power"],
+        "motor_braking_power": assisted["braking_mechanical_power"],
+        "baseline_regenerated_power": baseline["regenerated_power"],
+        "motor_regenerated_power": assisted["regenerated_power"],
+        "baseline_energy_burden": baseline_energy_burden,
+        "energy_burden_with_spring": energy_burden_with_spring,
+        "baseline_net_battery_energy": energy(baseline, "net_battery_power"),
+        "net_battery_energy_with_spring": energy(assisted, "net_battery_power"),
+        "baseline_electrical_draw_energy": energy(baseline, "electrical_draw_power"),
+        "electrical_draw_energy_with_spring": energy(assisted, "electrical_draw_power"),
+        "baseline_braking_energy": energy(baseline, "braking_mechanical_power"),
+        "braking_energy_with_spring": energy(assisted, "braking_mechanical_power"),
+        "baseline_regenerated_energy": energy(baseline, "regenerated_power"),
+        "regenerated_energy_with_spring": energy(assisted, "regenerated_power"),
+        "motoring_efficiency": motoring_efficiency,
+        "regen_efficiency": regen_efficiency,
         "energy_saved": energy_saved,
         "offload_fraction": offload_fraction,
         "offload_percent": 100.0 * offload_fraction,
@@ -316,8 +368,13 @@ def print_summary(duration, profile, topology_name, model_name, metrics):
         ("Profile name", profile),
         ("Topology name", topology_name),
         ("Model name", model_name),
-        ("Baseline motor energy", f"{metrics['baseline_motor_energy']:.6f} J"),
-        ("Motor energy with spring", f"{metrics['motor_energy_with_spring']:.6f} J"),
+        ("Motoring efficiency", f"{metrics['motoring_efficiency']:.3f}"),
+        ("Regeneration efficiency", f"{metrics['regen_efficiency']:.3f}"),
+        ("Baseline energy burden", f"{metrics['baseline_energy_burden']:.6f} J"),
+        ("Energy burden with spring", f"{metrics['energy_burden_with_spring']:.6f} J"),
+        ("Net battery energy with spring", f"{metrics['net_battery_energy_with_spring']:.6f} J"),
+        ("Braking energy with spring", f"{metrics['braking_energy_with_spring']:.6f} J"),
+        ("Regenerated energy with spring", f"{metrics['regenerated_energy_with_spring']:.6f} J"),
         ("Energy saved", f"{metrics['energy_saved']:.6f} J"),
         ("Offload percent", f"{metrics['offload_percent']:.4f} %"),
         ("Mean absolute torque error", f"{metrics['mean_abs_torque_error']:.6f} N*m"),
@@ -340,8 +397,11 @@ def print_batch_summary(rows):
     print("Overall averages")
     print("----------------")
     print(f"Offload percent            : {overall['offload_pct']:.4f} %")
-    print(f"Baseline motor energy      : {overall['baseline_motor_energy_j']:.6f} J")
-    print(f"Motor energy with spring   : {overall['motor_energy_with_spring_j']:.6f} J")
+    print(f"Baseline energy burden     : {overall['baseline_energy_burden_j']:.6f} J")
+    print(f"Energy burden with spring  : {overall['energy_burden_with_spring_j']:.6f} J")
+    print(f"Net battery energy         : {overall['net_battery_energy_with_spring_j']:.6f} J")
+    print(f"Braking energy with spring : {overall['braking_energy_with_spring_j']:.6f} J")
+    print(f"Regenerated energy         : {overall['regenerated_energy_with_spring_j']:.6f} J")
     print(f"Energy saved               : {overall['energy_saved_j']:.6f} J")
     print(f"Mean absolute torque error : {overall['mean_abs_torque_error_nm']:.6f} N*m")
     print(f"Max absolute torque error  : {overall['max_abs_torque_error_nm']:.6f} N*m")
@@ -358,17 +418,42 @@ def print_batch_summary(rows):
                 "family": family,
                 "cases": len(family_data),
                 "offload_pct": average["offload_pct"],
+                "baseline_burden_j": average["baseline_energy_burden_j"],
+                "assisted_burden_j": average["energy_burden_with_spring_j"],
+                "braking_energy_j": average["braking_energy_with_spring_j"],
                 "energy_saved_j": average["energy_saved_j"],
                 "mean_abs_torque_error_nm": average["mean_abs_torque_error_nm"],
+                "max_abs_torque_error_nm": average["max_abs_torque_error_nm"],
             }
         )
-    print(_format_table(family_rows, ["family", "cases", "offload_pct", "energy_saved_j", "mean_abs_torque_error_nm"]))
+    print(
+        _format_table(
+            family_rows,
+            [
+                "family",
+                "cases",
+                "offload_pct",
+                "baseline_burden_j",
+                "assisted_burden_j",
+                "braking_energy_j",
+                "energy_saved_j",
+                "mean_abs_torque_error_nm",
+                "max_abs_torque_error_nm",
+            ],
+        )
+    )
 
 
 def average_metrics(rows):
     keys = [
-        "baseline_motor_energy_j",
-        "motor_energy_with_spring_j",
+        "baseline_energy_burden_j",
+        "energy_burden_with_spring_j",
+        "baseline_net_battery_energy_j",
+        "net_battery_energy_with_spring_j",
+        "baseline_braking_energy_j",
+        "braking_energy_with_spring_j",
+        "baseline_regenerated_energy_j",
+        "regenerated_energy_with_spring_j",
         "energy_saved_j",
         "offload_pct",
         "mean_abs_torque_error_nm",
@@ -406,8 +491,16 @@ def save_evaluation_csv(path, t, theta, theta_dot, tau_target, tau_spring, metri
         "tau_target",
         "tau_spring",
         "residual_torque",
-        "baseline_motor_power",
-        "motor_power_with_spring",
+        "baseline_mechanical_power",
+        "motor_mechanical_power",
+        "baseline_energy_burden_power",
+        "motor_energy_burden_power",
+        "baseline_electrical_draw_power",
+        "motor_electrical_draw_power",
+        "baseline_braking_power",
+        "motor_braking_power",
+        "baseline_regenerated_power",
+        "motor_regenerated_power",
     ]
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -419,8 +512,16 @@ def save_evaluation_csv(path, t, theta, theta_dot, tau_target, tau_spring, metri
             tau_target,
             tau_spring,
             metrics["residual_torque"],
-            metrics["baseline_motor_power"],
-            metrics["motor_power_with_spring"],
+            metrics["baseline_mechanical_power"],
+            metrics["motor_mechanical_power"],
+            metrics["baseline_energy_burden_power"],
+            metrics["motor_energy_burden_power"],
+            metrics["baseline_electrical_draw_power"],
+            metrics["motor_electrical_draw_power"],
+            metrics["baseline_braking_power"],
+            metrics["motor_braking_power"],
+            metrics["baseline_regenerated_power"],
+            metrics["motor_regenerated_power"],
         ):
             writer.writerow([f"{value:.10f}" for value in values])
 
@@ -435,8 +536,16 @@ def save_summary_csv(path, rows):
         "cases",
         "duration_s",
         "samples",
-        "average_baseline_motor_energy_j",
-        "average_motor_energy_with_spring_j",
+        "motoring_efficiency",
+        "regen_efficiency",
+        "average_baseline_energy_burden_j",
+        "average_energy_burden_with_spring_j",
+        "average_baseline_net_battery_energy_j",
+        "average_net_battery_energy_with_spring_j",
+        "average_baseline_braking_energy_j",
+        "average_braking_energy_with_spring_j",
+        "average_baseline_regenerated_energy_j",
+        "average_regenerated_energy_with_spring_j",
         "average_energy_saved_j",
         "average_offload_pct",
         "average_mean_abs_torque_error_nm",
@@ -452,8 +561,16 @@ def save_summary_csv(path, rows):
             "cases": len(group_rows),
             "duration_s": first["duration_s"],
             "samples": first["samples"],
-            "average_baseline_motor_energy_j": average["baseline_motor_energy_j"],
-            "average_motor_energy_with_spring_j": average["motor_energy_with_spring_j"],
+            "motoring_efficiency": first["motoring_efficiency"],
+            "regen_efficiency": first["regen_efficiency"],
+            "average_baseline_energy_burden_j": average["baseline_energy_burden_j"],
+            "average_energy_burden_with_spring_j": average["energy_burden_with_spring_j"],
+            "average_baseline_net_battery_energy_j": average["baseline_net_battery_energy_j"],
+            "average_net_battery_energy_with_spring_j": average["net_battery_energy_with_spring_j"],
+            "average_baseline_braking_energy_j": average["baseline_braking_energy_j"],
+            "average_braking_energy_with_spring_j": average["braking_energy_with_spring_j"],
+            "average_baseline_regenerated_energy_j": average["baseline_regenerated_energy_j"],
+            "average_regenerated_energy_with_spring_j": average["regenerated_energy_with_spring_j"],
             "average_energy_saved_j": average["energy_saved_j"],
             "average_offload_pct": average["offload_pct"],
             "average_mean_abs_torque_error_nm": average["mean_abs_torque_error_nm"],
@@ -491,10 +608,10 @@ def plot_evaluation(path, t, theta, tau_target, tau_spring, metrics, profile):
     axes[2].set_ylabel("residual [N*m]")
     axes[2].grid(True, alpha=0.25)
 
-    axes[3].plot(t, metrics["baseline_motor_power"], label="baseline motor power", linewidth=1.8)
-    axes[3].plot(t, metrics["motor_power_with_spring"], label="with spring", linewidth=1.5)
+    axes[3].plot(t, metrics["baseline_energy_burden_power"], label="baseline burden", linewidth=1.8)
+    axes[3].plot(t, metrics["motor_energy_burden_power"], label="with spring", linewidth=1.5)
     axes[3].set_xlabel("time [s]")
-    axes[3].set_ylabel("positive power [W]")
+    axes[3].set_ylabel("energy burden [W]")
     axes[3].legend()
     axes[3].grid(True, alpha=0.25)
 
@@ -504,7 +621,6 @@ def plot_evaluation(path, t, theta, tau_target, tau_spring, metrics, profile):
 def evaluate_case(args, profile, duration, samples, amplitude_deg, frequency_hz):
     trajectory = synthetic_trajectory(duration, samples, amplitude_deg, frequency_hz)
     tau_target = generated_target(profile, trajectory["theta"], trajectory["theta_dot"])
-    profile_params = default_profile_named(profile)
     return evaluate_arrays(
         args,
         profile=profile,
@@ -517,7 +633,6 @@ def evaluate_case(args, profile, duration, samples, amplitude_deg, frequency_hz)
         samples=samples,
         amplitude_deg=amplitude_deg,
         frequency_hz=frequency_hz,
-        profile_params=profile_params,
     )
 
 
@@ -533,7 +648,6 @@ def evaluate_arrays(
     samples,
     amplitude_deg,
     frequency_hz,
-    profile_params=None,
 ):
     network, topology = load_network(args.topology)
     if args.adaptive_model:
@@ -544,13 +658,19 @@ def evaluate_arrays(
             theta_ddot,
             tau_target,
             args.adaptive_model,
-            profile_params=profile_params,
         )
         model_name = Path(args.adaptive_model).stem
     else:
         tau_spring = spring_torque_over_time(network, theta, relax_internal=not args.no_relax_internal)
         model_name = "fixed_stiffness"
-    metrics = evaluate_energy(t, tau_target, tau_spring, theta_dot)
+    metrics = evaluate_energy(
+        t,
+        tau_target,
+        tau_spring,
+        theta_dot,
+        args.motoring_efficiency,
+        args.regen_efficiency,
+    )
     duration = float(t[-1] - t[0])
     topology_name = topology.get("name", Path(args.topology).stem)
     return {
@@ -568,8 +688,16 @@ def evaluate_arrays(
         "tau_target": tau_target,
         "tau_spring": tau_spring,
         "metrics": metrics,
-        "baseline_motor_energy_j": metrics["baseline_motor_energy"],
-        "motor_energy_with_spring_j": metrics["motor_energy_with_spring"],
+        "motoring_efficiency": metrics["motoring_efficiency"],
+        "regen_efficiency": metrics["regen_efficiency"],
+        "baseline_energy_burden_j": metrics["baseline_energy_burden"],
+        "energy_burden_with_spring_j": metrics["energy_burden_with_spring"],
+        "baseline_net_battery_energy_j": metrics["baseline_net_battery_energy"],
+        "net_battery_energy_with_spring_j": metrics["net_battery_energy_with_spring"],
+        "baseline_braking_energy_j": metrics["baseline_braking_energy"],
+        "braking_energy_with_spring_j": metrics["braking_energy_with_spring"],
+        "baseline_regenerated_energy_j": metrics["baseline_regenerated_energy"],
+        "regenerated_energy_with_spring_j": metrics["regenerated_energy_with_spring"],
         "energy_saved_j": metrics["energy_saved"],
         "offload_pct": metrics["offload_percent"],
         "mean_abs_torque_error_nm": metrics["mean_abs_torque_error"],
@@ -579,7 +707,7 @@ def evaluate_arrays(
 
 def run_single(args):
     network, topology = load_network(args.topology)
-    profile, profile_params, t, theta, theta_dot, theta_ddot, tau_target = prepare_trajectory(args)
+    profile, t, theta, theta_dot, theta_ddot, tau_target = prepare_trajectory(args)
     if args.adaptive_model:
         tau_spring, model_metadata = adaptive_spring_torque_over_time(
             network,
@@ -588,13 +716,19 @@ def run_single(args):
             theta_ddot,
             tau_target,
             args.adaptive_model,
-            profile_params=profile_params,
         )
         model_name = Path(args.adaptive_model).stem
     else:
         tau_spring = spring_torque_over_time(network, theta, relax_internal=not args.no_relax_internal)
         model_name = "fixed_stiffness"
-    metrics = evaluate_energy(t, tau_target, tau_spring, theta_dot)
+    metrics = evaluate_energy(
+        t,
+        tau_target,
+        tau_spring,
+        theta_dot,
+        args.motoring_efficiency,
+        args.regen_efficiency,
+    )
 
     duration = float(t[-1] - t[0])
     topology_name = topology.get("name", Path(args.topology).stem)
@@ -616,9 +750,21 @@ def parse_float_list(value):
     return [float(item.strip()) for item in value.split(",") if item.strip()]
 
 
-def run_batch(args):
+def generate_batch_profile_parameters(args):
     rng = np.random.default_rng(args.batch_seed)
-    profile_params = generate_profile_parameters(rng, args.batch_count)
+    profiles_per_family = args.profiles_per_family
+    if args.batch_count is not None:
+        family_count = len(TERRAIN_FAMILIES)
+        if args.batch_count % family_count != 0:
+            raise ValueError(
+                f"--batch-count must be divisible by {family_count} so terrain families stay balanced."
+            )
+        profiles_per_family = args.batch_count // family_count
+    return generate_terrain_profile_parameters(rng, profiles_per_family, TERRAIN_FAMILIES)
+
+
+def run_batch(args):
+    profile_params = generate_batch_profile_parameters(args)
 
     rows = []
     for index, params in enumerate(profile_params):
@@ -640,7 +786,6 @@ def run_batch(args):
             samples=args.samples,
             amplitude_deg=params["amplitude_deg"],
             frequency_hz=params["frequency_hz"],
-            profile_params=params,
         )
         result["family"] = params["family"]
         rows.append(
@@ -652,8 +797,16 @@ def run_batch(args):
                     "topology",
                     "duration_s",
                     "samples",
-                    "baseline_motor_energy_j",
-                    "motor_energy_with_spring_j",
+                    "motoring_efficiency",
+                    "regen_efficiency",
+                    "baseline_energy_burden_j",
+                    "energy_burden_with_spring_j",
+                    "baseline_net_battery_energy_j",
+                    "net_battery_energy_with_spring_j",
+                    "baseline_braking_energy_j",
+                    "braking_energy_with_spring_j",
+                    "baseline_regenerated_energy_j",
+                    "regenerated_energy_with_spring_j",
                     "energy_saved_j",
                     "offload_pct",
                     "mean_abs_torque_error_nm",
@@ -671,11 +824,17 @@ def run_batch(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate time-domain motor energy/offload for a spring network.")
-    parser.add_argument("--topology", default=DEFAULT_TOPOLOGY_PATH, help="Path to a topology JSON file.")
+    parser.add_argument(
+        "--network",
+        choices=sorted(NETWORK_PRESETS),
+        default=DEFAULT_NETWORK_PRESET,
+        help="Select a matched topology/adaptive-model pair (default: fan).",
+    )
+    parser.add_argument("--topology", default=None, help="Custom topology JSON; overrides the preset topology.")
     parser.add_argument(
         "--adaptive-model",
-        default=DEFAULT_ADAPTIVE_MODEL_PATH,
-        help="Learned adaptive stiffness .npz model. Defaults to the active adaptive trained model.",
+        default=None,
+        help="Custom learned stiffness .npz model; overrides the preset adaptive model.",
     )
     parser.add_argument(
         "--baseline",
@@ -694,7 +853,15 @@ def main():
         help="Target torque profile to use if tau_target is not supplied.",
     )
     parser.add_argument("--duration", type=float, default=5.0, help="Synthetic trajectory duration in seconds.")
-    parser.add_argument("--samples", type=int, default=300, help="Synthetic trajectory sample count.")
+    parser.add_argument(
+        "--samples",
+        type=int,
+        default=160,
+        help=(
+            "Synthetic trajectory sample count (default: 160, matching the adaptive "
+            "training timestep over the default five-second duration)."
+        ),
+    )
     parser.add_argument("--amplitude-deg", type=float, default=30.0, help="Synthetic trajectory amplitude in degrees.")
     parser.add_argument("--frequency-hz", type=float, default=1.0, help="Synthetic trajectory frequency in Hz.")
     parser.add_argument(
@@ -702,16 +869,39 @@ def main():
         action="store_true",
         help="Run only one trajectory using --profile, --duration, --samples, --amplitude-deg, and --frequency-hz.",
     )
-    parser.add_argument("--batch-count", type=int, default=DEFAULT_BATCH_COUNT, help="Generated trajectory/profile count for batch mode.")
+    parser.add_argument(
+        "--profiles-per-family",
+        type=int,
+        default=DEFAULT_BATCH_PROFILES_PER_FAMILY,
+        help="Generated trajectories for each of flat, mixed, and rough terrain (default: 100).",
+    )
+    parser.add_argument(
+        "--batch-count",
+        type=int,
+        default=None,
+        help="Optional total batch size; must be divisible by three and overrides --profiles-per-family.",
+    )
     parser.add_argument("--batch-seed", type=int, default=DEFAULT_BATCH_SEED, help="Random seed for generated batch profiles.")
+    parser.add_argument(
+        "--motoring-efficiency",
+        type=float,
+        default=DEFAULT_MOTORING_EFFICIENCY,
+        help="Motor/drive efficiency while delivering positive shaft power (default: 0.85).",
+    )
+    parser.add_argument(
+        "--regen-efficiency",
+        type=float,
+        default=DEFAULT_REGEN_EFFICIENCY,
+        help="Fraction of mechanical braking energy returned electrically (default: 0.60).",
+    )
     parser.add_argument(
         "--output-dir",
         default=PROJECT_ROOT / "plots" / "trajectory_evaluation",
         help="Directory for plot and CSV outputs.",
     )
     args = parser.parse_args()
-    if args.baseline:
-        args.adaptive_model = None
+    validate_efficiencies(args.motoring_efficiency, args.regen_efficiency)
+    resolve_network_preset(args)
     if args.trajectory or args.single:
         run_single(args)
     else:

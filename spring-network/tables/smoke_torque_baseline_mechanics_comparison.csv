@@ -1,0 +1,5 @@
+model,mechanics,profiles,mean_rmse_nm,median_rmse_nm,mean_offload_pct,median_offload_pct,mean_abs_residual_nm,max_peak_abs_residual_nm
+fixed_baseline,relaxed,3,7.720329,5.179876,11.805857,0.000000,6.650863,20.661957
+fixed_baseline,unrelaxed,3,8.990624,9.143341,-567.968280,0.000000,8.325418,17.457930
+adaptive,relaxed,3,7.917408,5.538937,11.642687,0.000000,6.862822,21.058996
+adaptive,unrelaxed,3,8.749368,8.584750,-530.838941,0.000000,8.070055,17.059355

@@ -4,7 +4,8 @@ import numpy as np
 ANGLE_LIMIT_RAD = np.deg2rad(44.0)
 DEFAULT_PROFILE_SEED = 17
 DEFAULT_TORQUE_LIMIT_NM = 115.0
-TERRAIN_FAMILIES = ("flat_terrain", "rough_terrain", "mixed_terrain")
+TERRAIN_FAMILIES = ("flat_terrain", "mixed_terrain", "rough_terrain")
+ROUGHNESS_ORDER = TERRAIN_FAMILIES
 
 
 def generate_profile_parameters(rng, count):
@@ -17,20 +18,37 @@ def generate_profile_parameters(rng, count):
 
 
 def generate_terrain_profile_parameters(rng, profiles_per_family, families=TERRAIN_FAMILIES):
-    """Generate separated terrain-family piecewise-linear torque profiles."""
+    """Generate one random population, then classify it by relative roughness."""
+    families = tuple(families)
+    unknown = set(families) - set(ROUGHNESS_ORDER)
+    if unknown:
+        raise ValueError(f"Unsupported terrain families: {', '.join(sorted(unknown))}")
+
+    family_order = [family for family in ROUGHNESS_ORDER if family in families]
+    total = profiles_per_family * len(family_order)
     profiles = []
-    for family in families:
-        for index in range(profiles_per_family):
-            name = f"{family}_{index:04d}"
-            profile = base_profile_parameters(rng, name, family)
-            profile["knots_tau"] = terrain_torque_knots(rng, profile["knots_theta"], family)
-            profiles.append(profile)
-    rng.shuffle(profiles)
-    return profiles
+    for index in range(total):
+        profile = base_profile_parameters(rng, f"candidate_{index:04d}", "unclassified")
+        profile["knots_tau"] = random_restoring_torque_knots(rng, profile["knots_theta"])
+        profile["roughness_score"] = profile_roughness_score(profile)
+        profiles.append(profile)
+
+    profiles.sort(key=lambda profile: profile["roughness_score"])
+    classified = []
+    for family_index, family in enumerate(family_order):
+        start = family_index * profiles_per_family
+        stop = start + profiles_per_family
+        for index, profile in enumerate(profiles[start:stop]):
+            profile["family"] = family
+            profile["name"] = f"{family}_{index:04d}"
+            classified.append(profile)
+
+    rng.shuffle(classified)
+    return classified
 
 
 def base_profile_parameters(rng, name, family):
-    motion = terrain_motion_parameters(rng, family)
+    motion = random_motion_parameters(rng)
     return {
         "name": name,
         "family": family,
@@ -40,41 +58,15 @@ def base_profile_parameters(rng, name, family):
     }
 
 
-def terrain_motion_parameters(rng, family):
-    if family == "flat_terrain":
-        return {
-            "amplitude_deg": rng.uniform(16.0, 30.0),
-            "frequency_hz": rng.uniform(0.55, 1.05),
-            "phase": rng.uniform(0.0, 2.0 * np.pi),
-            "harmonic_fraction": rng.uniform(0.03, 0.12),
-            "bump_count": int(rng.integers(0, 3)),
-            "noise_scale": rng.uniform(0.001, 0.007),
-        }
-    if family == "rough_terrain":
-        return {
-            "amplitude_deg": rng.uniform(22.0, 40.0),
-            "frequency_hz": rng.uniform(0.70, 1.50),
-            "phase": rng.uniform(0.0, 2.0 * np.pi),
-            "harmonic_fraction": rng.uniform(0.12, 0.30),
-            "bump_count": int(rng.integers(5, 11)),
-            "noise_scale": rng.uniform(0.014, 0.034),
-        }
-    if family == "mixed_terrain":
-        return {
-            "amplitude_deg": rng.uniform(18.0, 36.0),
-            "frequency_hz": rng.uniform(0.55, 1.30),
-            "phase": rng.uniform(0.0, 2.0 * np.pi),
-            "harmonic_fraction": rng.uniform(0.08, 0.22),
-            "bump_count": int(rng.integers(2, 7)),
-            "noise_scale": rng.uniform(0.006, 0.022),
-        }
+def random_motion_parameters(rng):
+    """Sample motion without assigning a terrain label."""
     return {
-        "amplitude_deg": rng.uniform(18.0, 38.0),
-        "frequency_hz": rng.uniform(0.55, 1.35),
+        "amplitude_deg": rng.uniform(16.0, 40.0),
+        "frequency_hz": rng.uniform(0.55, 1.50),
         "phase": rng.uniform(0.0, 2.0 * np.pi),
-        "harmonic_fraction": rng.uniform(0.05, 0.24),
-        "bump_count": int(rng.integers(2, 8)),
-        "noise_scale": rng.uniform(0.004, 0.026),
+        "harmonic_fraction": rng.uniform(0.03, 0.30),
+        "bump_count": int(rng.integers(0, 11)),
+        "noise_scale": rng.uniform(0.001, 0.034),
     }
 
 
@@ -91,27 +83,37 @@ def random_torque_knots(rng, theta_knots):
     return DEFAULT_TORQUE_LIMIT_NM * normalized
 
 
-def terrain_torque_knots(rng, theta_knots, family):
-    if family == "flat_terrain":
-        stiffness = rng.uniform(55.0, 95.0)
-        noise = rng.normal(0.0, 5.0, size=len(theta_knots))
-        torque = -stiffness * theta_knots + noise
-    elif family == "rough_terrain":
-        stiffness = rng.uniform(115.0, 175.0)
-        cubic = rng.uniform(35.0, 95.0)
-        noise = rng.normal(0.0, 16.0, size=len(theta_knots))
-        torque = -stiffness * theta_knots - cubic * theta_knots**3 + noise
-    elif family == "mixed_terrain":
-        k_neg = rng.uniform(75.0, 125.0)
-        k_pos = rng.uniform(95.0, 155.0)
-        cubic = rng.uniform(8.0, 55.0)
-        stiffness = np.where(theta_knots < 0.0, k_neg, k_pos)
-        noise = rng.normal(0.0, 10.0, size=len(theta_knots))
-        torque = -stiffness * theta_knots - cubic * theta_knots**3 + noise
-    else:
-        return random_torque_knots(rng, theta_knots)
-
+def random_restoring_torque_knots(rng, theta_knots):
+    """Sample a random restoring curve before any terrain classification."""
+    k_neg = rng.uniform(50.0, 175.0)
+    k_pos = rng.uniform(50.0, 175.0)
+    cubic = rng.uniform(0.0, 95.0)
+    noise_scale = rng.uniform(0.0, 18.0)
+    stiffness = np.where(theta_knots < 0.0, k_neg, k_pos)
+    torque = -stiffness * theta_knots - cubic * theta_knots**3
+    torque += rng.normal(0.0, noise_scale, size=len(theta_knots))
     return np.clip(torque, -DEFAULT_TORQUE_LIMIT_NM, DEFAULT_TORQUE_LIMIT_NM)
+
+
+def profile_roughness_score(profile):
+    """Score relative motion irregularity and torque-curve variation in [rougher = larger]."""
+    theta = np.asarray(profile["knots_theta"], dtype=float)
+    torque = np.asarray(profile["knots_tau"], dtype=float)
+    slopes = np.diff(torque) / np.maximum(np.diff(theta), 1e-9)
+
+    motion_score = np.mean(
+        [
+            (profile["frequency_hz"] - 0.55) / (1.50 - 0.55),
+            (profile["harmonic_fraction"] - 0.03) / (0.30 - 0.03),
+            profile["bump_count"] / 10.0,
+            (profile["noise_scale"] - 0.001) / (0.034 - 0.001),
+        ]
+    )
+    slope_magnitude = np.clip(np.mean(np.abs(slopes)) / 250.0, 0.0, 1.0)
+    slope_variation = np.clip(np.std(slopes) / 250.0, 0.0, 1.0)
+    torque_range = np.ptp(torque) / (2.0 * DEFAULT_TORQUE_LIMIT_NM)
+    torque_score = np.mean([slope_magnitude, slope_variation, torque_range])
+    return float(0.6 * motion_score + 0.4 * torque_score)
 
 
 def profile_torque(theta, params):
