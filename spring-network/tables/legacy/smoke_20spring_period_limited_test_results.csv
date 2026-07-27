@@ -1,0 +1,4 @@
+profile,family,roughness_score,rmse_nm,offload_pct,baseline_energy_burden_j,energy_burden_with_spring_j,net_battery_energy_with_spring_j,braking_energy_with_spring_j,regenerated_energy_with_spring_j,mean_abs_residual_nm,peak_abs_residual_nm
+rough_terrain_0000,rough_terrain,0.524501,139.404073,-166.176108,299.563020,797.365190,553.264234,244.100956,146.460574,128.276738,188.747716
+mixed_terrain_0000,mixed_terrain,0.514572,70.081958,-400.114629,90.433622,452.271772,394.440756,57.831016,34.698610,62.042787,103.313529
+flat_terrain_0000,flat_terrain,0.389351,141.208705,-173.020926,400.115871,1092.400057,925.160077,167.239980,100.343988,120.877867,251.769383

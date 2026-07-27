@@ -1,0 +1,26 @@
+{
+  "task": "Isaac-Velocity-Rough-Unitree-Go2-v0",
+  "checkpoint": "C:\\Users\\kn109\\Code\\Adaptive-Spring-Network\\.pretrained_checkpoints\\rsl_rl\\Isaac-Velocity-Rough-Unitree-Go2-v0\\checkpoint_rslrl5.pt",
+  "output_prefix": "go2_rough_500env_labeled",
+  "num_envs": 500,
+  "steps_requested": 500,
+  "decimation": 1,
+  "torque_source": "applied",
+  "policy_label": "checkpoint_rslrl5",
+  "device": "cuda:0",
+  "dt": 0.02,
+  "joint_names": [
+    "FL_hip_joint",
+    "FR_hip_joint",
+    "RL_hip_joint",
+    "RR_hip_joint",
+    "FL_thigh_joint",
+    "FR_thigh_joint",
+    "RL_thigh_joint",
+    "RR_thigh_joint",
+    "FL_calf_joint",
+    "FR_calf_joint",
+    "RL_calf_joint",
+    "RR_calf_joint"
+  ]
+}

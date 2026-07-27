@@ -3,6 +3,8 @@ import argparse
 import csv
 import sys
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -32,22 +34,28 @@ from energy_accounting import (
 )
 from profile_generator import (
     ANGLE_LIMIT_RAD,
+    PROFILE_CLASSIFICATION,
     TERRAIN_FAMILIES,
+    generate_classified_profile_parameters,
     generate_profile_parameters,
-    generate_terrain_profile_parameters,
+    profile_descriptor,
     profile_torque,
 )
+
+EXPERIMENT_CUBIC_RATIO = 0.0
+EXPERIMENT_CUBIC_REFERENCE_EXTENSION = 0.05
+from periodicity_classifier import PERIODICITY_CLASSIFICATION, periodicity_score
 from topology_loader import DEFAULT_TOPOLOGY_PATH, load_network
 
 
 TRAINING_NETWORK_PRESETS = {
     "baseline": {
-        "topology": PROJECT_ROOT / "topologies" / "baseline_model.json",
+        "topology": PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "baseline_model.json",
         "output_name": "adaptive_trained_baseline_model",
     },
     "fan": {
-        "topology": PROJECT_ROOT / "topologies" / "internal_fan_model.json",
-        "output_name": "adaptive_trained_internal_fan_model",
+        "topology": PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "internal_fan_20_spring_model.json",
+        "output_name": "adaptive_trained_internal_fan_20spring_model",
     },
 }
 
@@ -98,31 +106,73 @@ def add_irregular_bumps(rng, t, theta, count, max_height):
     return bumped
 
 
-def generate_motion_trajectory(params, duration, samples, seed):
+def generate_motion_trajectory(
+    params, duration, samples, seed, motion_mode="randomized", fixed_frequency_hz=None
+):
     """Generate theta(t), derivatives, and a piecewise-linear target torque."""
     rng = np.random.default_rng(seed)
     t = np.linspace(0.0, duration, samples)
-    amp = np.deg2rad(params["amplitude_deg"])
-    freq = params["frequency_hz"]
-    phase = params["phase"]
-
-    base = amp * np.sin(2.0 * np.pi * freq * t + phase)
-    harmonic = 0.18 * amp * np.sin(2.0 * np.pi * 0.5 * freq * t + 0.4 * phase)
-    theta = base + params["harmonic_fraction"] * harmonic
-    theta = add_irregular_bumps(
-        rng,
-        t,
-        theta,
-        params["bump_count"],
-        max_height=0.18 * amp,
-    )
-    theta += smooth_noise(rng, samples, params["noise_scale"])
+    freq = params["frequency_hz"] if fixed_frequency_hz is None else float(fixed_frequency_hz)
+    if motion_mode == "triangular":
+        # Start at the lower limit, reach the upper limit halfway through each
+        # cycle, then return to the lower limit. No future/profile information
+        # or random motion disturbances are introduced.
+        cycle_fraction = np.mod(freq * t, 1.0)
+        theta = ANGLE_LIMIT_RAD * (1.0 - 4.0 * np.abs(cycle_fraction - 0.5))
+    elif motion_mode == "randomized":
+        amp = np.deg2rad(params["amplitude_deg"])
+        phase = params["phase"]
+        base = amp * np.sin(2.0 * np.pi * freq * t + phase)
+        harmonic = 0.18 * amp * np.sin(2.0 * np.pi * 0.5 * freq * t + 0.4 * phase)
+        theta = base + params["harmonic_fraction"] * harmonic
+        theta = add_irregular_bumps(
+            rng,
+            t,
+            theta,
+            params["bump_count"],
+            max_height=0.18 * amp,
+        )
+        theta += smooth_noise(rng, samples, params["noise_scale"])
+    else:
+        raise ValueError("motion_mode must be 'randomized' or 'triangular'")
 
     theta = np.clip(theta, -ANGLE_LIMIT_RAD, ANGLE_LIMIT_RAD)
     theta_dot = causal_derivative(theta, t)
     theta_ddot = causal_derivative(theta_dot, t)
     tau_target = profile_torque(theta, params)
     return t, theta, theta_dot, theta_ddot, tau_target
+
+
+def generate_periodicity_profiles(rng, count, duration, samples, seed, periodicity_class):
+    """Generate candidates and retain one cycle-repeatability third."""
+    if count <= 0:
+        raise ValueError("count must be positive")
+    if periodicity_class not in {"high", "medium", "low"}:
+        raise ValueError("periodicity_class must be high, medium, or low")
+    candidates = generate_profile_parameters(rng, 3 * count)
+    for profile_index, params in enumerate(candidates):
+        t, theta, _, _, torque = generate_motion_trajectory(
+            params, duration, samples, seed + profile_index
+        )
+        metrics = periodicity_score(t, theta, torque, params["frequency_hz"])
+        params.update(metrics)
+        params["classification"] = PERIODICITY_CLASSIFICATION
+
+    candidates.sort(key=lambda profile: profile["periodicity_score"], reverse=True)
+    class_index = {"high": 0, "medium": 1, "low": 2}[periodicity_class]
+    start = class_index * count
+    selected = candidates[start : start + count]
+    family = f"{periodicity_class}_periodicity"
+    for index, profile in enumerate(selected):
+        profile["family"] = family
+        profile["name"] = f"{family}_{index:04d}"
+    rng.shuffle(selected)
+    return selected
+
+
+def generate_high_periodicity_profiles(rng, count, duration, samples, seed):
+    """Backward-compatible wrapper for the highest-repeatability third."""
+    return generate_periodicity_profiles(rng, count, duration, samples, seed, "high")
 
 
 def motion_window_features(theta, theta_dot, theta_ddot, window_size, scales):
@@ -195,7 +245,7 @@ def interpolate_basis(basis_by_angle, angles_rad, theta):
     return basis
 
 
-def normalization_scales(profile_params, duration, samples, seed, window_size, progress_interval=100):
+def normalization_scales(profile_params, duration, samples, seed, window_size, progress_interval=100, motion_mode="randomized", fixed_frequency_hz=None):
     theta_values = []
     theta_dot_values = []
     theta_ddot_values = []
@@ -203,10 +253,8 @@ def normalization_scales(profile_params, duration, samples, seed, window_size, p
     total = len(profile_params)
     for profile_index, params in enumerate(profile_params):
         _, theta, theta_dot, theta_ddot, tau_target = generate_motion_trajectory(
-            params,
-            duration,
-            samples,
-            seed + profile_index,
+            params, duration, samples, seed + profile_index,
+            motion_mode=motion_mode, fixed_frequency_hz=fixed_frequency_hz
         )
         theta_values.append(theta)
         theta_dot_values.append(theta_dot)
@@ -237,8 +285,12 @@ def build_dataset(
     window_size,
     scales,
     seed,
+    stiffness_update_mode="timestep",
     progress_label=None,
     progress_interval=100,
+    include_profile_descriptor=True,
+    motion_mode="randomized",
+    fixed_frequency_hz=None,
 ):
     rows = []
     targets = []
@@ -248,16 +300,20 @@ def build_dataset(
     theta_rows = []
     theta_dot_rows = []
     theta_ddot_rows = []
+    update_mask_rows = []
 
     total = len(profile_params)
     for profile_index, params in enumerate(profile_params):
         t, theta, theta_dot, theta_ddot, tau_target = generate_motion_trajectory(
-            params,
-            duration,
-            samples,
-            seed + profile_index,
+            params, duration, samples, seed + profile_index,
+            motion_mode=motion_mode, fixed_frequency_hz=fixed_frequency_hz
         )
-        rows.append(motion_window_features(theta, theta_dot, theta_ddot, window_size, scales))
+        motion_features = motion_window_features(theta, theta_dot, theta_ddot, window_size, scales)
+        if include_profile_descriptor:
+            descriptor = profile_descriptor(params, scales["torque"])
+            rows.append(np.hstack((motion_features, np.repeat(descriptor[None, :], samples, axis=0))))
+        else:
+            rows.append(motion_features)
         targets.append(tau_target)
         basis_rows.append(interpolate_basis(basis_by_angle, angles_rad, theta))
         profile_indices.append(np.full(samples, profile_index, dtype=int))
@@ -265,6 +321,14 @@ def build_dataset(
         theta_rows.append(theta)
         theta_dot_rows.append(theta_dot)
         theta_ddot_rows.append(theta_ddot)
+        if stiffness_update_mode == "period":
+            cycle = np.floor((t - t[0]) * params["frequency_hz"] + 1e-9).astype(int)
+            update_mask = np.concatenate(([True], cycle[1:] != cycle[:-1]))
+        elif stiffness_update_mode == "timestep":
+            update_mask = np.ones(samples, dtype=bool)
+        else:
+            raise ValueError("stiffness_update_mode must be 'timestep' or 'period'")
+        update_mask_rows.append(update_mask)
         if progress_label:
             print_progress(progress_label, profile_index + 1, total, progress_interval)
 
@@ -280,6 +344,8 @@ def build_dataset(
         "samples_per_profile": int(samples),
         "window_size": int(window_size),
         "torque_scale": float(scales["torque"]),
+        "stiffness_update_mode": stiffness_update_mode,
+        "update_mask": np.concatenate(update_mask_rows),
     }
 
 
@@ -298,6 +364,9 @@ def train_model(
     energy_weight=0.0,
     motoring_efficiency=DEFAULT_MOTORING_EFFICIENCY,
     regen_efficiency=DEFAULT_REGEN_EFFICIENCY,
+    stiffness_change_weight=0.0,
+    optimizer_name="adam",
+    initial_model=None,
 ):
     selected_device = select_training_device(device)
     if torch is not None:
@@ -316,6 +385,9 @@ def train_model(
             energy_weight,
             motoring_efficiency,
             regen_efficiency,
+            stiffness_change_weight,
+            optimizer_name,
+            initial_model,
         )
     raise RuntimeError(
         "PyTorch is required for causal torque-history training. Install torch in this environment."
@@ -429,13 +501,24 @@ def torch_causal_torque_rollout(parameters, features, basis, target, dataset, mi
     history = torch.zeros((profiles, window_size, 3), dtype=features.dtype, device=features.device)
     predicted_rows = []
     stiffness_rows = []
+    update_mask = torch.as_tensor(
+        dataset["update_mask"].reshape(profiles, samples), dtype=torch.bool, device=features.device
+    )
+    held_stiffness = None
 
     for sample_index in range(samples):
         inputs = torch.cat((motion[:, sample_index, :], history.reshape(profiles, -1)), dim=1)
         hidden = torch.tanh(inputs @ parameters["w1"] + parameters["b1"])
         logits = hidden @ parameters["w2"] + parameters["b2"]
         sig = torch.sigmoid(torch.clamp(logits, -50.0, 50.0))
-        stiffness = min_k + (max_k - min_k) * sig
+        candidate_stiffness = min_k + (max_k - min_k) * sig
+        if held_stiffness is None:
+            stiffness = candidate_stiffness
+        else:
+            stiffness = torch.where(
+                update_mask[:, sample_index].unsqueeze(1), candidate_stiffness, held_stiffness
+            )
+        held_stiffness = stiffness
         spring_torque = torch.sum(basis[:, sample_index, :] * stiffness, dim=1)
         motor_torque = target[:, sample_index] - spring_torque
         predicted_rows.append(spring_torque)
@@ -466,22 +549,28 @@ def train_model_torch(
     energy_weight,
     motoring_efficiency,
     regen_efficiency,
+    stiffness_change_weight,
+    optimizer_name,
+    initial_model=None,
 ):
     print(f"Training device: {device_label(device)}")
     torch.manual_seed(seed)
     if device == "cuda":
         torch.cuda.manual_seed_all(seed)
 
-    rng = np.random.default_rng(seed)
-    initial_model = initialize_model(
-        rng,
-        dataset["features"].shape[1] + 3 * dataset["window_size"],
-        hidden_dim,
-        dataset["basis"].shape[1],
-        initial_k,
-        min_k,
-        max_k,
-    )
+    if initial_model is None:
+        rng = np.random.default_rng(seed)
+        initial_model = initialize_model(
+            rng,
+            dataset["features"].shape[1] + 3 * dataset["window_size"],
+            hidden_dim,
+            dataset["basis"].shape[1],
+            initial_k,
+            min_k,
+            max_k,
+        )
+    else:
+        initial_model = {name: np.asarray(value, dtype=float).copy() for name, value in initial_model.items()}
 
     torch_device = torch.device(device)
     features = torch.as_tensor(dataset["features"], dtype=torch.float32, device=torch_device)
@@ -494,7 +583,14 @@ def train_model_torch(
         name: torch.tensor(value, dtype=torch.float32, device=torch_device, requires_grad=True)
         for name, value in initial_model.items()
     }
-    optimizer = torch.optim.Adam(parameters.values(), lr=learning_rate)
+    if optimizer_name == "adam":
+        optimizer = torch.optim.Adam(parameters.values(), lr=learning_rate)
+    elif optimizer_name == "sgd":
+        # No momentum, adaptive moments, or per-parameter learning rates:
+        # this is ordinary full-batch gradient descent.
+        optimizer = torch.optim.SGD(parameters.values(), lr=learning_rate)
+    else:
+        raise ValueError(f"Unknown optimizer: {optimizer_name}")
     best_model = {name: value.copy() for name, value in initial_model.items()}
     best_loss = float("inf")
     history = {
@@ -505,6 +601,7 @@ def train_model_torch(
         "stiffness_penalty": [],
         "energy_penalty": [],
         "mean_offload_surrogate": [],
+        "stiffness_change_penalty": [],
     }
 
     for iteration in range(1, iterations + 1):
@@ -525,7 +622,12 @@ def train_model_torch(
         energy_penalty = energy_weight * mse.detach() * energy_ratio
         stiffness_delta = (stiffness - initial_k_tensor) / torch.clamp(initial_k_tensor, min=1.0)
         stiffness_penalty = stiffness_weight * torch.mean(stiffness_delta**2)
-        loss = mse + stiffness_penalty + energy_penalty
+        schedule = stiffness.reshape(-1, dataset["samples_per_profile"], stiffness.shape[1])
+        normalized_change = (schedule[:, 1:, :] - schedule[:, :-1, :]) / max(max_k - min_k, 1e-9)
+        stiffness_change_penalty = stiffness_change_weight * mse.detach() * torch.mean(
+            normalized_change**2
+        )
+        loss = mse + stiffness_penalty + energy_penalty + stiffness_change_penalty
         loss.backward()
         optimizer.step()
 
@@ -534,6 +636,7 @@ def train_model_torch(
         penalty_value = float(stiffness_penalty.detach().cpu())
         energy_penalty_value = float(energy_penalty.detach().cpu())
         offload_surrogate = float((1.0 - energy_ratio.detach().cpu()).item() * 100.0)
+        change_penalty_value = float(stiffness_change_penalty.detach().cpu())
         train_rmse = float(np.sqrt(mse_value))
 
         history["iteration"].append(iteration)
@@ -543,6 +646,7 @@ def train_model_torch(
         history["stiffness_penalty"].append(penalty_value)
         history["energy_penalty"].append(energy_penalty_value)
         history["mean_offload_surrogate"].append(offload_surrogate)
+        history["stiffness_change_penalty"].append(change_penalty_value)
 
         if loss_value < best_loss:
             best_loss = loss_value
@@ -675,7 +779,8 @@ def torch_spring_energy(topology, positions, stiffness):
     delta = positions[:, b, :] - positions[:, a, :]
     length = torch.linalg.norm(delta, dim=2).clamp_min(1e-9)
     stretch = length - rest.unsqueeze(0)
-    return 0.5 * torch.sum(stiffness * stretch**2)
+    cubic = EXPERIMENT_CUBIC_RATIO / max(EXPERIMENT_CUBIC_REFERENCE_EXTENSION ** 2, 1e-12)
+    return torch.sum(0.5 * stiffness * stretch**2 + 0.25 * stiffness * cubic * stretch**4)
 
 
 def torch_relax_positions(topology, prescribed_positions, stiffness, relaxation_steps, relaxation_lr):
@@ -698,7 +803,10 @@ def torch_relax_positions(topology, prescribed_positions, stiffness, relaxation_
     return positions
 
 
-def torch_torque_batch(topology, theta, stiffness, relax_internal, relaxation_steps, relaxation_lr):
+def torch_torque_components_batch(
+    topology, theta, stiffness, relax_internal, relaxation_steps, relaxation_lr
+):
+    """Return each spring's torque after jointly relaxing the network."""
     positions = torch_prescribed_positions(topology, theta)
     if relax_internal:
         positions = torch_relax_positions(topology, positions, stiffness, relaxation_steps, relaxation_lr)
@@ -710,10 +818,13 @@ def torch_torque_batch(topology, theta, stiffness, relax_internal, relaxation_st
     length = torch.linalg.norm(delta, dim=2).clamp_min(1e-9)
     direction = delta / length.unsqueeze(2)
     stretch = length - rest.unsqueeze(0)
-    force_on_a = stiffness * stretch
+    cubic = EXPERIMENT_CUBIC_RATIO / max(EXPERIMENT_CUBIC_REFERENCE_EXTENSION ** 2, 1e-12)
+    force_on_a = stiffness * stretch + stiffness * cubic * stretch**3
     force_on_a = force_on_a.unsqueeze(2) * direction
 
-    torque = torch.zeros(len(theta), dtype=positions.dtype, device=positions.device)
+    components = torch.zeros(
+        (len(theta), len(a)), dtype=positions.dtype, device=positions.device
+    )
     limb2_indices = set(int(index) for index in topology["limb2_indices"].detach().cpu().numpy())
     for spring_index in range(len(a)):
         node_a = int(a[spring_index])
@@ -721,12 +832,311 @@ def torch_torque_batch(topology, theta, stiffness, relax_internal, relaxation_st
         if node_a in limb2_indices:
             r = positions[:, node_a, :]
             force = force_on_a[:, spring_index, :]
-            torque = torque + r[:, 0] * force[:, 1] - r[:, 1] * force[:, 0]
+            components[:, spring_index] += r[:, 0] * force[:, 1] - r[:, 1] * force[:, 0]
         if node_b in limb2_indices:
             r = positions[:, node_b, :]
             force = -force_on_a[:, spring_index, :]
+            components[:, spring_index] += r[:, 0] * force[:, 1] - r[:, 1] * force[:, 0]
+    return components
+
+
+def torch_torque_batch(topology, theta, stiffness, relax_internal, relaxation_steps, relaxation_lr):
+    return torch.sum(
+        torch_torque_components_batch(
+            topology, theta, stiffness, relax_internal, relaxation_steps, relaxation_lr
+        ),
+        dim=1,
+    )
+
+
+def differentiable_relaxed_stiffness_torque(
+    topology,
+    theta,
+    stiffness,
+    relaxation_steps,
+    step_size,
+    max_step,
+):
+    """Torque with a small, differentiable unrolled equilibrium solve."""
+    prescribed = torch_prescribed_positions(topology, theta)
+    internal_indices = topology["internal_indices"]
+    internal = prescribed[:, internal_indices, :]
+    for _ in range(relaxation_steps):
+        internal = internal.requires_grad_(True)
+        positions = prescribed.clone()
+        positions[:, internal_indices, :] = internal
+        energy = torch_spring_energy(topology, positions, stiffness)
+        gradient = torch.autograd.grad(energy, internal, create_graph=True)[0]
+        force = -gradient
+        displacement = max_step * torch.tanh(step_size * force / max(max_step, 1e-12))
+        internal = internal + displacement
+
+    positions = prescribed.clone()
+    positions[:, internal_indices, :] = internal
+    a, b = topology["spring_a"], topology["spring_b"]
+    delta = positions[:, b, :] - positions[:, a, :]
+    length = torch.linalg.norm(delta, dim=2).clamp_min(1e-9)
+    direction = delta / length.unsqueeze(2)
+    stretch = length - topology["rest_lengths"].unsqueeze(0)
+    cubic = EXPERIMENT_CUBIC_RATIO / max(
+        EXPERIMENT_CUBIC_REFERENCE_EXTENSION**2, 1e-12
+    )
+    force_on_a = (
+        stiffness * stretch + stiffness * cubic * stretch**3
+    ).unsqueeze(2) * direction
+    torque = torch.zeros(len(theta), dtype=theta.dtype, device=theta.device)
+    limb2 = set(
+        int(index)
+        for index in topology["limb2_indices"].detach().cpu().numpy()
+    )
+    for spring_index in range(len(a)):
+        node_a, node_b = int(a[spring_index]), int(b[spring_index])
+        if node_a in limb2:
+            r, force = positions[:, node_a, :], force_on_a[:, spring_index, :]
+            torque = torque + r[:, 0] * force[:, 1] - r[:, 1] * force[:, 0]
+        if node_b in limb2:
+            r, force = positions[:, node_b, :], -force_on_a[:, spring_index, :]
             torque = torque + r[:, 0] * force[:, 1] - r[:, 1] * force[:, 0]
     return torque
+
+
+def profile_subset(dataset, profile_indices):
+    """Select complete causal trajectories from a flattened dataset."""
+    samples = dataset["samples_per_profile"]
+    indices = np.asarray(profile_indices, dtype=int)
+    flat = (indices[:, None] * samples + np.arange(samples)[None, :]).reshape(-1)
+    result = dict(dataset)
+    total_rows = len(dataset["target"])
+    for key, value in dataset.items():
+        if isinstance(value, np.ndarray) and value.shape[0] == total_rows:
+            result[key] = value[flat]
+    return result
+
+
+def differentiable_mechanics_correction(
+    model,
+    dataset,
+    topology_path,
+    min_k,
+    max_k,
+    initial_k,
+    updates,
+    learning_rate,
+    relaxation_steps,
+    relaxation_step_size,
+    relaxation_max_step,
+    device,
+    stiffness_weight=0.0,
+    stiffness_change_weight=0.0,
+    energy_weight=0.0,
+    motoring_efficiency=DEFAULT_MOTORING_EFFICIENCY,
+    regen_efficiency=DEFAULT_REGEN_EFFICIENCY,
+):
+    """Fine-tune on a small set using gradients through relaxed mechanics."""
+    torch_device = torch.device(select_training_device(device))
+    network, _ = load_network(topology_path)
+    topology = torch_topology_data(network, torch_device)
+    parameters = {
+        name: torch.tensor(
+            value, dtype=torch.float32, device=torch_device, requires_grad=True
+        )
+        for name, value in model.items()
+    }
+    optimizer = torch.optim.Adam(parameters.values(), lr=learning_rate)
+    profiles = len(dataset["target"]) // dataset["samples_per_profile"]
+    samples = dataset["samples_per_profile"]
+    window = dataset["window_size"]
+    motion = torch.as_tensor(
+        dataset["features"].reshape(profiles, samples, -1),
+        dtype=torch.float32,
+        device=torch_device,
+    )
+    target = torch.as_tensor(
+        dataset["target"].reshape(profiles, samples),
+        dtype=torch.float32,
+        device=torch_device,
+    )
+    theta = torch.as_tensor(
+        dataset["theta"].reshape(profiles, samples),
+        dtype=torch.float32,
+        device=torch_device,
+    )
+    theta_dot = torch.as_tensor(
+        dataset["theta_dot"].reshape(profiles, samples),
+        dtype=torch.float32,
+        device=torch_device,
+    )
+    update_mask = torch.as_tensor(
+        dataset["update_mask"].reshape(profiles, samples),
+        dtype=torch.bool,
+        device=torch_device,
+    )
+    initial_k_tensor = torch.as_tensor(
+        initial_k, dtype=torch.float32, device=torch_device
+    )
+    baseline_power_mean = torch.clamp(
+        torch.mean(
+            torch_energy_burden_power(
+                target * theta_dot, motoring_efficiency, regen_efficiency
+            )
+        ),
+        min=1e-9,
+    )
+    torque_scale = max(dataset["torque_scale"], 1e-9)
+
+    for update in range(1, updates + 1):
+        optimizer.zero_grad(set_to_none=True)
+        history = torch.zeros(
+            (profiles, window, 3), dtype=motion.dtype, device=torch_device
+        )
+        held = None
+        previous_stiffness = None
+        squared_error = 0.0
+        for sample_index in range(samples):
+            inputs = torch.cat(
+                (motion[:, sample_index, :], history.reshape(profiles, -1)), dim=1
+            )
+            hidden = torch.tanh(inputs @ parameters["w1"] + parameters["b1"])
+            logits = hidden @ parameters["w2"] + parameters["b2"]
+            sig = torch.sigmoid(torch.clamp(logits, -50.0, 50.0))
+            candidate = min_k + (max_k - min_k) * sig
+            stiffness = (
+                candidate
+                if held is None
+                else torch.where(
+                    update_mask[:, sample_index].unsqueeze(1), candidate, held
+                )
+            )
+            held = stiffness
+            torque = differentiable_relaxed_stiffness_torque(
+                topology,
+                theta[:, sample_index],
+                stiffness,
+                relaxation_steps,
+                relaxation_step_size,
+                relaxation_max_step,
+            )
+            error = torque - target[:, sample_index]
+            mse_step = torch.mean(error**2)
+            loss_step = mse_step / samples
+            stiffness_delta = (stiffness - initial_k_tensor) / torch.clamp(
+                initial_k_tensor, min=1.0
+            )
+            loss_step = loss_step + stiffness_weight * torch.mean(
+                stiffness_delta**2
+            ) / samples
+            assisted_power = torch_energy_burden_power(
+                (target[:, sample_index] - torque) * theta_dot[:, sample_index],
+                motoring_efficiency,
+                regen_efficiency,
+            )
+            loss_step = loss_step + (
+                energy_weight
+                * mse_step.detach()
+                * torch.mean(assisted_power)
+                / baseline_power_mean
+                / samples
+            )
+            if previous_stiffness is not None:
+                normalized_change = (
+                    stiffness - previous_stiffness
+                ) / max(max_k - min_k, 1e-9)
+                loss_step = loss_step + (
+                    stiffness_change_weight
+                    * mse_step.detach()
+                    * torch.mean(normalized_change**2)
+                    / max(samples - 1, 1)
+                )
+            loss_step.backward()
+            squared_error += float(torch.sum(error.detach() ** 2).cpu())
+            previous_stiffness = stiffness.detach()
+            motor = target[:, sample_index] - torque.detach()
+            realized = torch.stack(
+                (target[:, sample_index], torque.detach(), motor), dim=1
+            ) / torque_scale
+            history = torch.cat(
+                (history[:, 1:, :], realized.unsqueeze(1)), dim=1
+            )
+            held = held.detach()
+        optimizer.step()
+        rmse = np.sqrt(squared_error / (profiles * samples))
+        print(
+            f"  mechanics correction update {update:3d}/{updates} | "
+            f"relaxed RMSE {rmse:8.3f} N*m"
+        )
+    return {
+        name: value.detach().cpu().numpy().astype(float).copy()
+        for name, value in parameters.items()
+    }
+
+
+def refresh_surrogate_basis(
+    model,
+    dataset,
+    topology_path,
+    min_k,
+    max_k,
+    device,
+    relaxation_steps,
+):
+    """Rebuild the local stiffness basis at a controller's relaxed operating points.
+
+    At the anchor schedule, ``sum(basis * stiffness)`` exactly reproduces the
+    relaxed torque. Subsequent optimization treats the relaxed geometry as a
+    local linearization until the next refresh.
+    """
+    selected_device = select_training_device(device)
+    torch_device = torch.device(selected_device)
+    network, _ = load_network(topology_path)
+    topology = torch_topology_data(network, torch_device)
+    samples = dataset["samples_per_profile"]
+    profiles = len(dataset["target"]) // samples
+    window_size = dataset["window_size"]
+    torque_scale = max(dataset["torque_scale"], 1e-9)
+    motion = dataset["features"].reshape(profiles, samples, -1)
+    target = dataset["target"].reshape(profiles, samples)
+    theta = dataset["theta"].reshape(profiles, samples)
+    update_mask = dataset["update_mask"].reshape(profiles, samples)
+    history = np.zeros((profiles, window_size, 3), dtype=float)
+    refreshed = np.empty((profiles, samples, len(network.springs)), dtype=float)
+    held_stiffness = None
+
+    for sample_index in range(samples):
+        inputs = np.hstack((motion[:, sample_index, :], history.reshape(profiles, -1)))
+        candidate, _ = forward(model, inputs, min_k, max_k)
+        if held_stiffness is None:
+            stiffness = candidate
+        else:
+            stiffness = np.where(
+                update_mask[:, sample_index, None], candidate, held_stiffness
+            )
+        held_stiffness = stiffness
+        theta_tensor = torch.as_tensor(
+            theta[:, sample_index], dtype=torch.float32, device=torch_device
+        )
+        stiffness_tensor = torch.as_tensor(
+            stiffness, dtype=torch.float32, device=torch_device
+        )
+        components = torch_torque_components_batch(
+            topology,
+            theta_tensor,
+            stiffness_tensor,
+            relax_internal=True,
+            relaxation_steps=relaxation_steps,
+            relaxation_lr=0.03,
+        ).detach().cpu().numpy()
+        basis = components / np.maximum(stiffness, 1e-9)
+        refreshed[:, sample_index, :] = basis
+        spring_torque = np.sum(basis * stiffness, axis=1)
+        motor_torque = target[:, sample_index] - spring_torque
+        realized = np.stack(
+            (target[:, sample_index], spring_torque, motor_torque), axis=1
+        ) / torque_scale
+        history = np.concatenate((history[:, 1:, :], realized[:, None, :]), axis=1)
+
+    updated = dict(dataset)
+    updated["basis"] = refreshed.reshape(-1, refreshed.shape[2])
+    return updated
 
 
 def model_uses_torque_history(model, dataset):
@@ -757,6 +1167,8 @@ def recurrent_dataset_with_mechanics(
     predicted = np.empty((profile_count, samples), dtype=float)
     stiffness = np.empty((profile_count, samples, len(load_network(topology_path)[0].springs)), dtype=float)
     selected_backend = select_mechanics_backend(mechanics_backend)
+    update_mask = dataset["update_mask"].reshape(profile_count, samples)
+    held_stiffness = None
 
     if selected_backend == "torch":
         selected_device = select_training_device(device)
@@ -768,7 +1180,14 @@ def recurrent_dataset_with_mechanics(
 
     for sample_index in range(samples):
         inputs = np.hstack((motion[:, sample_index, :], history.reshape(profile_count, -1)))
-        stiffness_step, _ = forward(model, inputs, min_k, max_k)
+        candidate_stiffness, _ = forward(model, inputs, min_k, max_k)
+        if held_stiffness is None:
+            stiffness_step = candidate_stiffness
+        else:
+            stiffness_step = np.where(
+                update_mask[:, sample_index, None], candidate_stiffness, held_stiffness
+            )
+        held_stiffness = stiffness_step
         stiffness[:, sample_index, :] = stiffness_step
 
         if selected_backend == "torch":
@@ -1198,11 +1617,11 @@ def write_torque_trace_rows(path, profile_params, dataset, predicted, stiffness,
                 writer.writerow(row)
 
 
-def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, duration, samples, window_size, scales, min_k, max_k, seed, topology_path):
+def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, duration, samples, window_size, scales, min_k, max_k, seed, topology_path, stiffness_update_mode="timestep", include_profile_descriptor=True, motion_mode="randomized", fixed_frequency_hz=None):
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8), constrained_layout=True)
+    fig, axes = plt.subplots(4, 3, figsize=(14, 15), constrained_layout=True)
     axes = axes.ravel()
-    for profile_index, (ax, params) in enumerate(zip(axes, test_params[:6])):
+    for profile_index, params in enumerate(test_params[:6]):
         network, _ = load_network(topology_path)
         dataset = build_dataset(
             [params],
@@ -1213,6 +1632,10 @@ def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, dur
             window_size,
             scales,
             seed + profile_index,
+            stiffness_update_mode=stiffness_update_mode,
+            include_profile_descriptor=include_profile_descriptor,
+            motion_mode=motion_mode,
+            fixed_frequency_hz=fixed_frequency_hz,
         )
         predicted, _ = predict_dataset_relaxed(
             model,
@@ -1222,14 +1645,29 @@ def plot_test_examples(path, model, test_params, angles_rad, basis_by_angle, dur
             max_k,
             mechanics_backend="scipy",
         )
-        ax.plot(dataset["t"], dataset["target"], "k--", linewidth=1.8, label="target")
-        ax.plot(dataset["t"], predicted, linewidth=1.5, label="learned")
-        ax.set_title(f"{params['family']} / {params['name']}")
-        ax.set_xlabel("time [s]")
-        ax.set_ylabel("torque [N*m]")
-        ax.axhline(0.0, color="0.7", linewidth=1.0)
-        ax.grid(True, alpha=0.25)
+        time_ax = axes[profile_index]
+        angle_ax = axes[profile_index + 6]
+        residual = dataset["target"] - predicted
+        combined = predicted + residual
+        time_ax.plot(dataset["t"], combined, color="tab:green", linestyle=":", linewidth=3.0, label="spring + motor", zorder=1)
+        time_ax.plot(dataset["t"], predicted, color="tab:blue", linewidth=2.5, label="spring", zorder=3)
+        time_ax.plot(dataset["t"], residual, color="tab:red", linestyle="-.", linewidth=2.2, label="residual motor", zorder=3)
+        time_ax.plot(dataset["t"], dataset["target"], color="black", linestyle="--", linewidth=2.0, label="target", zorder=4)
+        time_ax.set_title(f"{params['family']} / {params['name']}")
+        time_ax.set_xlabel("time [s]")
+        time_ax.set_ylabel("torque [N*m]")
+        angle_order = np.argsort(dataset["theta"])
+        angle_deg = np.rad2deg(dataset["theta"])
+        angle_ax.scatter(angle_deg, predicted, s=18, color="tab:blue", alpha=0.8, label="spring", zorder=3)
+        angle_ax.scatter(angle_deg, residual, s=16, color="tab:red", marker="x", alpha=0.75, label="residual motor", zorder=3)
+        angle_ax.plot(angle_deg[angle_order], dataset["target"][angle_order], color="black", linestyle="--", linewidth=2.0, label="target", zorder=4)
+        angle_ax.set_xlabel("joint angle [deg]")
+        angle_ax.set_ylabel("torque [N*m]")
+        for ax in (time_ax, angle_ax):
+            ax.axhline(0.0, color="0.7", linewidth=1.0)
+            ax.grid(True, alpha=0.25)
     axes[0].legend()
+    axes[6].legend()
     fig.savefig(path, dpi=160)
 
 
@@ -1272,6 +1710,7 @@ def plot_training_convergence(path, history, train_baseline_rmse, test_baseline_
 
 
 def main():
+    global EXPERIMENT_CUBIC_RATIO, EXPERIMENT_CUBIC_REFERENCE_EXTENSION
     parser = argparse.ArgumentParser(description="Train adaptive spring stiffnesses on generated piecewise-linear torque profiles.")
     parser.add_argument(
         "--network",
@@ -1281,25 +1720,83 @@ def main():
     )
     parser.add_argument("--topology", default=None, help="Custom topology JSON; overrides the network preset.")
     parser.add_argument(
-        "--profile-set",
-        choices=["terrain", "arbitrary"],
-        default="terrain",
-        help="Use separated terrain-family piecewise profiles or arbitrary random piecewise profiles.",
+        "--profiles-per-family",
+        type=int,
+        default=2000,
+        help="Arbitrary training profiles in each relative shape-roughness class.",
     )
-    parser.add_argument("--profiles-per-family", type=int, default=2000, help="Training profiles per terrain family.")
-    parser.add_argument("--test-profiles-per-family", type=int, default=400, help="Held-out test profiles per terrain family.")
-    parser.add_argument("--train-profiles", type=int, default=12000, help="Training trajectories for --profile-set arbitrary.")
-    parser.add_argument("--test-profiles", type=int, default=1200, help="Held-out trajectories for --profile-set arbitrary.")
+    parser.add_argument(
+        "--classification-mode",
+        choices=["roughness", "periodicity-high", "periodicity-medium", "periodicity-low"],
+        default="roughness",
+        help=(
+            "Dataset selection method. Periodicity modes rank generated trajectories by "
+            "cycle repeatability and train only on the selected third."
+        ),
+    )
+    parser.add_argument(
+        "--test-profiles-per-family",
+        type=int,
+        default=400,
+        help="Held-out arbitrary profiles in each relative shape-roughness class.",
+    )
     parser.add_argument("--duration", type=float, default=5.0, help="Trajectory duration in seconds.")
     parser.add_argument("--samples", type=int, default=160, help="Samples per generated trajectory.")
+    parser.add_argument(
+        "--motion-mode",
+        choices=["randomized", "triangular"],
+        default="randomized",
+        help="Joint motion generator. Triangular repeatedly sweeps from -45 to +45 degrees and back.",
+    )
+    parser.add_argument(
+        "--fixed-frequency-hz",
+        type=float,
+        default=None,
+        help="Use one constant motion frequency for every trajectory instead of each profile's random frequency.",
+    )
     parser.add_argument("--window-size", type=int, default=10, help="Recent motion samples used as neural-network input.")
+    parser.add_argument(
+        "--include-profile-descriptor",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Include global torque-profile knots (privileged information). Disabled by default for causal training.",
+    )
+    parser.add_argument(
+        "--stiffness-update-mode",
+        choices=["timestep", "period"],
+        default="timestep",
+        help="Update stiffness every sample or only at nominal gait-period boundaries.",
+    )
     parser.add_argument("--output-name", default=None, help="Output stem; defaults to a topology-specific model name.")
+    parser.add_argument(
+        "--write-torque-trace",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Write the very large per-timestep torque CSV. Disabled by default.",
+    )
     parser.add_argument("--iterations", type=int, default=5000, help="Gradient descent iterations.")
     parser.add_argument("--learning-rate", type=float, default=0.01, help="Adam step size.")
+    parser.add_argument(
+        "--optimizer",
+        choices=["adam", "sgd"],
+        default="adam",
+        help="Weight optimizer. 'sgd' is plain full-batch gradient descent with no momentum.",
+    )
     parser.add_argument("--hidden-dim", type=int, default=256, help="Hidden units in the neural stiffness model.")
     parser.add_argument("--min-stiffness", type=float, default=1.0, help="Minimum learned stiffness in N/m.")
     parser.add_argument("--max-stiffness", type=float, default=800.0, help="Maximum learned stiffness in N/m.")
-    parser.add_argument("--stiffness-weight", type=float, default=2e-4, help="Penalty for moving far from baseline stiffnesses.")
+    parser.add_argument(
+        "--stiffness-weight",
+        type=float,
+        default=0.0,
+        help="Optional penalty for moving far from baseline stiffnesses (default: disabled).",
+    )
+    parser.add_argument(
+        "--stiffness-change-weight",
+        type=float,
+        default=0.0,
+        help="Soft penalty on normalized timestep-to-timestep stiffness changes.",
+    )
     parser.add_argument(
         "--energy-weight",
         type=float,
@@ -1333,8 +1830,57 @@ def main():
     )
     parser.add_argument("--mechanics-batch-size", type=int, default=8192, help="Samples per GPU mechanics batch.")
     parser.add_argument("--relaxation-steps", type=int, default=80, help="PyTorch internal-node relaxation steps per mechanics batch.")
+    parser.add_argument(
+        "--surrogate-refreshes",
+        type=int,
+        default=0,
+        help=(
+            "Number of times to replay relaxed mechanics and rebuild the local "
+            "per-spring torque basis during training (default: 0)."
+        ),
+    )
+    parser.add_argument(
+        "--mechanics-correction-phases",
+        type=int,
+        default=0,
+        help=(
+            "Preliminary hybrid mode: number of short fine-tuning phases that "
+            "backpropagate through unrolled relaxed mechanics (default: 0)."
+        ),
+    )
+    parser.add_argument("--mechanics-correction-profiles", type=int, default=8)
+    parser.add_argument("--mechanics-correction-updates", type=int, default=10)
+    parser.add_argument("--mechanics-correction-relaxation-steps", type=int, default=40)
+    parser.add_argument("--mechanics-correction-learning-rate", type=float, default=0.0003)
+    parser.add_argument("--mechanics-correction-step-size", type=float, default=0.0001)
+    parser.add_argument("--mechanics-correction-max-step-mm", type=float, default=5.0)
+    parser.add_argument(
+        "--cubic-ratio", type=float, default=0.0,
+        help="Experimental dimensionless cubic hardening at the reference extension.",
+    )
+    parser.add_argument("--cubic-reference-extension-mm", type=float, default=50.0)
+    parser.add_argument("--cubic-design-extension-mm", type=float, default=1000.0)
+    parser.add_argument("--cubic-min-tangent-ratio", type=float, default=0.05)
     parser.add_argument("--seed", type=int, default=11, help="Random seed.")
     args = parser.parse_args()
+    if args.surrogate_refreshes < 0:
+        parser.error("--surrogate-refreshes cannot be negative")
+    if args.surrogate_refreshes >= args.iterations:
+        parser.error("--surrogate-refreshes must be smaller than --iterations")
+    if args.mechanics_correction_phases < 0:
+        parser.error("--mechanics-correction-phases cannot be negative")
+    if min(
+        args.mechanics_correction_profiles,
+        args.mechanics_correction_updates,
+        args.mechanics_correction_relaxation_steps,
+    ) <= 0:
+        parser.error("Mechanics-correction profiles, updates, and relaxation steps must be positive")
+    if args.mechanics_correction_learning_rate <= 0.0:
+        parser.error("--mechanics-correction-learning-rate must be positive")
+    if args.mechanics_correction_step_size <= 0.0 or args.mechanics_correction_max_step_mm <= 0.0:
+        parser.error("Mechanics-correction step sizes must be positive")
+    if args.fixed_frequency_hz is not None and args.fixed_frequency_hz <= 0.0:
+        parser.error("--fixed-frequency-hz must be positive")
     validate_efficiencies(args.motoring_efficiency, args.regen_efficiency)
     preset = TRAINING_NETWORK_PRESETS[args.network]
     if args.topology is None:
@@ -1345,17 +1891,51 @@ def main():
 
     network, topology = load_network(args.topology)
     angles_rad = np.radians(ANGLE_DEGREES)
-    basis_by_angle = spring_torque_basis(network, angles_rad, relax_internal=True)
+    if args.cubic_reference_extension_mm <= 0.0 or args.cubic_design_extension_mm <= 0.0:
+        parser.error("Cubic reference and design extensions must be positive")
+    tangent_ratio = 1.0 + 3.0 * args.cubic_ratio * (
+        args.cubic_design_extension_mm / args.cubic_reference_extension_mm
+    ) ** 2
+    if tangent_ratio < args.cubic_min_tangent_ratio:
+        parser.error(
+            "Unsafe cubic softening: tangent stiffness would fall to "
+            f"{tangent_ratio:.3f} times linear stiffness at the design extension."
+        )
+    EXPERIMENT_CUBIC_RATIO = args.cubic_ratio
+    EXPERIMENT_CUBIC_REFERENCE_EXTENSION = args.cubic_reference_extension_mm / 1000.0
+    basis_by_angle = spring_torque_basis(
+        network, angles_rad, relax_internal=True,
+        cubic_ratio=args.cubic_ratio,
+        cubic_reference_extension=args.cubic_reference_extension_mm / 1000.0,
+    )
     base_k = initial_stiffnesses(network)
 
     rng = np.random.default_rng(args.seed)
-    if args.profile_set == "terrain":
-        train_params = generate_terrain_profile_parameters(rng, args.profiles_per_family, TERRAIN_FAMILIES)
-        test_params = generate_terrain_profile_parameters(rng, args.test_profiles_per_family, TERRAIN_FAMILIES)
+    if args.classification_mode.startswith("periodicity-"):
+        periodicity_class = args.classification_mode.removeprefix("periodicity-")
+        train_params = generate_periodicity_profiles(
+            rng,
+            args.profiles_per_family,
+            args.duration,
+            args.samples,
+            args.seed + 1_000,
+            periodicity_class,
+        )
+        test_params = generate_periodicity_profiles(
+            rng,
+            args.test_profiles_per_family,
+            args.duration,
+            args.samples,
+            args.seed + 2_000,
+            periodicity_class,
+        )
+        active_classification = PERIODICITY_CLASSIFICATION
+        active_families = (f"{periodicity_class}_periodicity",)
     else:
-        all_params = generate_profile_parameters(rng, args.train_profiles + args.test_profiles)
-        train_params = all_params[: args.train_profiles]
-        test_params = all_params[args.train_profiles :]
+        train_params = generate_classified_profile_parameters(rng, args.profiles_per_family)
+        test_params = generate_classified_profile_parameters(rng, args.test_profiles_per_family)
+        active_classification = PROFILE_CLASSIFICATION
+        active_families = TERRAIN_FAMILIES
 
     scales = normalization_scales(
         train_params,
@@ -1364,6 +1944,8 @@ def main():
         args.seed + 10_000,
         args.window_size,
         progress_interval=args.progress_interval,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
     train_dataset = build_dataset(
         train_params,
@@ -1374,8 +1956,12 @@ def main():
         args.window_size,
         scales,
         args.seed + 20_000,
+        stiffness_update_mode=args.stiffness_update_mode,
         progress_label="training dataset profiles",
         progress_interval=args.progress_interval,
+        include_profile_descriptor=args.include_profile_descriptor,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
     test_dataset = build_dataset(
         test_params,
@@ -1386,8 +1972,12 @@ def main():
         args.window_size,
         scales,
         args.seed + 30_000,
+        stiffness_update_mode=args.stiffness_update_mode,
         progress_label="test dataset profiles",
         progress_interval=args.progress_interval,
+        include_profile_descriptor=args.include_profile_descriptor,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
 
     baseline_fixed_train = fixed_stiffness_relaxed_torque(
@@ -1416,20 +2006,42 @@ def main():
     test_baseline_rmse = float(np.sqrt(np.mean((baseline_fixed_test - test_dataset["target"]) ** 2)))
 
     print(f"Loaded topology: {topology['name']}")
-    print(f"Profile set: {args.profile_set}")
-    if args.profile_set == "terrain":
-        print(f"Terrain families: {', '.join(TERRAIN_FAMILIES)}")
-        print(f"Profiles per terrain family: train {args.profiles_per_family} | test {args.test_profiles_per_family}")
+    print("Profile set: arbitrary five-knot torque profiles")
+    print(f"Classification: {active_classification}")
+    print(f"Selected classes: {', '.join(active_families)}")
+    print(f"Profiles per class: train {args.profiles_per_family} | test {args.test_profiles_per_family}")
     print(f"Training trajectories: {len(train_params)} | test trajectories: {len(test_params)}")
     print(f"Samples per trajectory: {args.samples} | motion window: {args.window_size} samples")
+    print(f"Motion mode: {args.motion_mode}")
+    print(
+        f"Motion frequency: {args.fixed_frequency_hz:g} Hz (fixed across all trajectories)"
+        if args.fixed_frequency_hz is not None
+        else "Motion frequency: randomized per trajectory"
+    )
+    print(f"Stiffness update mode: {args.stiffness_update_mode}")
+    print(f"Stiffness change weight: {args.stiffness_change_weight:g}")
+    print(f"Optimizer: {args.optimizer} | learning rate: {args.learning_rate:g}")
+    descriptor_description = "10 normalized profile knots + " if args.include_profile_descriptor else ""
     feature_description = (
-        f"{args.window_size} * theta/theta_dot/theta_ddot + "
-        f"{args.window_size} * previous target/spring/motor torque"
+        descriptor_description
+        + f"{args.window_size} * theta/theta_dot/theta_ddot + "
+        + f"{args.window_size} * previous target/spring/motor torque"
     )
     feature_count = train_dataset["features"].shape[1] + 3 * args.window_size
-    print("Input mode: causal motion and realized torque history")
+    print(
+        "Input mode: commanded profile plus causal motion and realized torque history"
+        if args.include_profile_descriptor
+        else "Input mode: strictly causal motion and realized torque history (no profile descriptor)"
+    )
     print(f"Feature count: {feature_count} ({feature_description})")
-    print("Training torque basis: relaxed internal-node geometry")
+    print(
+        "Training torque basis: relaxed baseline geometry"
+        if not args.surrogate_refreshes
+        else (
+            "Training torque basis: relaxed baseline geometry + "
+            f"{args.surrogate_refreshes} controller operating-point refresh(es)"
+        )
+    )
     print(f"Reported metrics: full relaxed network evaluation via {mechanics_backend}")
     print(
         f"Energy accounting: motoring efficiency {args.motoring_efficiency:.2f} | "
@@ -1438,22 +2050,118 @@ def main():
     print(f"Fixed-stiffness baseline train RMSE: {train_baseline_rmse:.4f} N*m")
     print(f"Fixed-stiffness baseline test RMSE:  {test_baseline_rmse:.4f} N*m")
 
-    model, training_history = train_model(
-        dataset=train_dataset,
-        initial_k=base_k,
-        hidden_dim=args.hidden_dim,
-        iterations=args.iterations,
-        learning_rate=args.learning_rate,
-        min_k=args.min_stiffness,
-        max_k=args.max_stiffness,
-        stiffness_weight=args.stiffness_weight,
-        seed=args.seed,
-        progress_interval=args.progress_interval,
-        device=args.device,
-        energy_weight=args.energy_weight,
-        motoring_efficiency=args.motoring_efficiency,
-        regen_efficiency=args.regen_efficiency,
-    )
+    phase_count = args.surrogate_refreshes + 1
+    if args.mechanics_correction_phases > phase_count:
+        parser.error(
+            "--mechanics-correction-phases cannot exceed the number of "
+            "surrogate phases (--surrogate-refreshes + 1)"
+        )
+    phase_iterations = [
+        args.iterations // phase_count + (1 if index < args.iterations % phase_count else 0)
+        for index in range(phase_count)
+    ]
+    active_train_dataset = train_dataset
+    model = None
+    training_history = None
+    completed_iterations = 0
+    correction_phase_indices = set()
+    correction_dataset = None
+    if args.mechanics_correction_phases:
+        correction_phase_indices = set(
+            np.linspace(
+                0,
+                phase_count - 1,
+                args.mechanics_correction_phases,
+                dtype=int,
+            ).tolist()
+        )
+        correction_rng = np.random.default_rng(args.seed + 90_000)
+        correction_count = min(
+            args.mechanics_correction_profiles, len(train_params)
+        )
+        correction_profiles = correction_rng.choice(
+            len(train_params), size=correction_count, replace=False
+        )
+        correction_dataset = profile_subset(
+            train_dataset, correction_profiles
+        )
+        print(
+            "Preliminary differentiable-mechanics correction: "
+            f"{len(correction_phase_indices)} phases | "
+            f"{correction_count} complete profiles | "
+            f"{args.mechanics_correction_updates} updates per phase"
+        )
+    for phase_index, iteration_count in enumerate(phase_iterations):
+        if phase_index:
+            print(
+                f"Refreshing surrogate at controller operating points "
+                f"({phase_index}/{args.surrogate_refreshes})..."
+            )
+            active_train_dataset = refresh_surrogate_basis(
+                model,
+                train_dataset,
+                args.topology,
+                args.min_stiffness,
+                args.max_stiffness,
+                args.device,
+                args.relaxation_steps,
+            )
+        phase_model, phase_history = train_model(
+            dataset=active_train_dataset,
+            initial_k=base_k,
+            hidden_dim=args.hidden_dim,
+            iterations=iteration_count,
+            learning_rate=args.learning_rate,
+            min_k=args.min_stiffness,
+            max_k=args.max_stiffness,
+            stiffness_weight=args.stiffness_weight,
+            seed=args.seed,
+            progress_interval=args.progress_interval,
+            device=args.device,
+            energy_weight=args.energy_weight,
+            motoring_efficiency=args.motoring_efficiency,
+            regen_efficiency=args.regen_efficiency,
+            stiffness_change_weight=args.stiffness_change_weight,
+            optimizer_name=args.optimizer,
+            initial_model=model,
+        )
+        model = phase_model
+        phase_history["iteration"] = [
+            completed_iterations + value for value in phase_history["iteration"]
+        ]
+        completed_iterations += iteration_count
+        if training_history is None:
+            training_history = phase_history
+        else:
+            for key, values in phase_history.items():
+                training_history[key].extend(values)
+        if phase_index in correction_phase_indices:
+            correction_number = (
+                sorted(correction_phase_indices).index(phase_index) + 1
+            )
+            print(
+                "Running differentiable-mechanics correction "
+                f"({correction_number}/{len(correction_phase_indices)})..."
+            )
+            model = differentiable_mechanics_correction(
+                model,
+                correction_dataset,
+                args.topology,
+                args.min_stiffness,
+                args.max_stiffness,
+                base_k,
+                args.mechanics_correction_updates,
+                args.mechanics_correction_learning_rate,
+                args.mechanics_correction_relaxation_steps,
+                args.mechanics_correction_step_size,
+                args.mechanics_correction_max_step_mm / 1000.0,
+                args.device,
+                stiffness_weight=args.stiffness_weight,
+                stiffness_change_weight=args.stiffness_change_weight,
+                energy_weight=args.energy_weight,
+                motoring_efficiency=args.motoring_efficiency,
+                regen_efficiency=args.regen_efficiency,
+            )
 
     train_pred, train_stiffness = predict_dataset_relaxed(
         model,
@@ -1480,6 +2188,12 @@ def main():
         device=args.device,
         mechanics_batch_size=args.mechanics_batch_size,
         relaxation_steps=args.relaxation_steps,
+    )
+    test_schedule = test_stiffness.reshape(len(test_params), args.samples, -1)
+    test_changes = np.abs(np.diff(test_schedule, axis=1))
+    print(
+        f"Held-out stiffness activity: mean |dk| {np.mean(test_changes):.4f} N/m per step | "
+        f"max |dk| {np.max(test_changes):.4f} N/m"
     )
     baseline_unrelaxed_test = fixed_stiffness_torque(
         test_dataset,
@@ -1533,13 +2247,17 @@ def main():
 
     output_dir = PROJECT_ROOT
     output_name = args.output_name
-    model_path = output_dir / "models" / f"{output_name}.npz"
-    train_table_path = output_dir / "tables" / f"{output_name}_train_results.csv"
-    test_table_path = output_dir / "tables" / f"{output_name}_test_results.csv"
-    torque_trace_path = output_dir / "tables" / f"{output_name}_test_torque_trace.csv"
-    model_comparison_path = output_dir / "tables" / f"{output_name}_mechanics_comparison.csv"
-    figure_path = output_dir / "plots" / "dataset_examples" / f"{output_name}_test_examples.png"
-    convergence_path = output_dir / "plots" / "dataset_examples" / f"{output_name}_training_convergence.png"
+    model_path = output_dir / "models" / "adaptive_stiffness" / f"{output_name}.npz"
+    table_dir = output_dir / "tables" / "adaptive_stiffness"
+    plot_dir = output_dir / "plots" / "adaptive_stiffness" / "dataset_examples"
+    train_table_path = table_dir / f"{output_name}_train_results.csv"
+    test_table_path = table_dir / f"{output_name}_test_results.csv"
+    torque_trace_path = table_dir / f"{output_name}_test_torque_trace.csv"
+    model_comparison_path = table_dir / f"{output_name}_mechanics_comparison.csv"
+    figure_path = plot_dir / f"{output_name}_test_examples.png"
+    convergence_path = plot_dir / f"{output_name}_training_convergence.png"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    table_dir.mkdir(parents=True, exist_ok=True)
 
     save_model(
         model_path,
@@ -1547,7 +2265,11 @@ def main():
         output_name,
         args.min_stiffness,
         args.max_stiffness,
-        feature_type="motion_torque_window",
+        feature_type=(
+            "profile_motion_torque_window"
+            if args.include_profile_descriptor
+            else "causal_motion_torque_window"
+        ),
         window_size=args.window_size,
         theta_scale=scales["theta"],
         theta_dot_scale=scales["theta_dot"],
@@ -1558,18 +2280,44 @@ def main():
         energy_weight=args.energy_weight,
         motoring_efficiency=args.motoring_efficiency,
         regen_efficiency=args.regen_efficiency,
-        profile_set=args.profile_set,
-        profiles_per_family=args.profiles_per_family if args.profile_set == "terrain" else 0,
-        test_profiles_per_family=args.test_profiles_per_family if args.profile_set == "terrain" else 0,
+        profile_set=(
+            f"{periodicity_class}_periodicity_piecewise"
+            if args.classification_mode.startswith("periodicity-")
+            else "classified_arbitrary"
+        ),
+        profile_classification=active_classification,
+        classification_mode=args.classification_mode,
+        profiles_per_family=args.profiles_per_family,
+        test_profiles_per_family=args.test_profiles_per_family,
         mechanics_backend=mechanics_backend,
         mechanics_batch_size=args.mechanics_batch_size,
         relaxation_steps=args.relaxation_steps,
+        surrogate_refreshes=args.surrogate_refreshes,
+        cubic_ratio=args.cubic_ratio,
+        cubic_reference_extension_mm=args.cubic_reference_extension_mm,
+        cubic_design_extension_mm=args.cubic_design_extension_mm,
+        cubic_min_tangent_ratio=args.cubic_min_tangent_ratio,
+        seed=args.seed,
+        mechanics_correction_phases=args.mechanics_correction_phases,
+        mechanics_correction_profiles=args.mechanics_correction_profiles,
+        mechanics_correction_updates=args.mechanics_correction_updates,
+        mechanics_correction_relaxation_steps=args.mechanics_correction_relaxation_steps,
+        mechanics_correction_learning_rate=args.mechanics_correction_learning_rate,
+        mechanics_correction_step_size=args.mechanics_correction_step_size,
+        mechanics_correction_max_step_mm=args.mechanics_correction_max_step_mm,
         duration=args.duration,
         samples=args.samples,
+        stiffness_update_mode=args.stiffness_update_mode,
+        stiffness_change_weight=args.stiffness_change_weight,
+        include_profile_descriptor=args.include_profile_descriptor,
+        optimizer=args.optimizer,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
     write_profile_rows(train_table_path, train_rows)
     write_profile_rows(test_table_path, test_rows)
-    write_torque_trace_rows(torque_trace_path, test_params, test_dataset, test_pred, test_stiffness, network)
+    if args.write_torque_trace:
+        write_torque_trace_rows(torque_trace_path, test_params, test_dataset, test_pred, test_stiffness, network)
     write_model_comparison_rows(model_comparison_path, model_comparison_rows)
     plot_test_examples(
         figure_path,
@@ -1585,6 +2333,10 @@ def main():
         args.max_stiffness,
         args.seed + 40_000,
         args.topology,
+        stiffness_update_mode=args.stiffness_update_mode,
+        include_profile_descriptor=args.include_profile_descriptor,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
     plot_training_convergence(
         convergence_path,
@@ -1597,7 +2349,10 @@ def main():
     print(f"Saved dataset-trained model to {model_path}")
     print(f"Saved train results to {train_table_path}")
     print(f"Saved test results to {test_table_path}")
-    print(f"Saved test torque trace to {torque_trace_path}")
+    if args.write_torque_trace:
+        print(f"Saved test torque trace to {torque_trace_path}")
+    else:
+        print("Skipped large test torque trace (enable with --write-torque-trace).")
     print(f"Saved mechanics comparison to {model_comparison_path}")
     print(f"Saved test example plot to {figure_path}")
     print(f"Saved training convergence plot to {convergence_path}")

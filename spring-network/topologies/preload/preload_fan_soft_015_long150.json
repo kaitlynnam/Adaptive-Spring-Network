@@ -1,0 +1,7 @@
+{
+  "name": "preload_fan_soft_015_long150",
+  "description": "Self-contained selected preload variant: 15% fan stiffness and 150% initialized rest length.",
+  "base_topology": "../adaptive_stiffness/internal_fan_20_spring_model.json",
+  "stiffness_scale": 0.15,
+  "rest_length_scale": 1.50
+}

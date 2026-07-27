@@ -3,6 +3,8 @@ import argparse
 import csv
 import sys
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,7 +23,8 @@ from energy_accounting import (
 from profile_generator import (
     TERRAIN_FAMILIES,
     default_profile_named,
-    generate_terrain_profile_parameters,
+    generate_classified_profile_parameters,
+    profile_descriptor,
     profile_torque,
 )
 from train_adaptive_dataset import causal_derivative, generate_motion_trajectory
@@ -34,12 +37,12 @@ DEFAULT_BATCH_SEED = 19
 DEFAULT_NETWORK_PRESET = "fan"
 NETWORK_PRESETS = {
     "baseline": {
-        "topology": PROJECT_ROOT / "topologies" / "baseline_model.json",
-        "adaptive_model": PROJECT_ROOT / "models" / "adaptive_trained_baseline_model.npz",
+        "topology": PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "baseline_model.json",
+        "adaptive_model": PROJECT_ROOT / "models" / "legacy" / "adaptive_trained_baseline_model.npz",
     },
     "fan": {
-        "topology": PROJECT_ROOT / "topologies" / "internal_fan_model.json",
-        "adaptive_model": PROJECT_ROOT / "models" / "adaptive_trained_internal_fan_model.npz",
+        "topology": PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "internal_fan_20_spring_model.json",
+        "adaptive_model": PROJECT_ROOT / "models" / "adaptive_stiffness" / "adaptive_stiffness_optimal.npz",
     },
 }
 
@@ -65,9 +68,15 @@ def resolve_network_preset(args):
             )
         with np.load(model_path, allow_pickle=False) as data:
             feature_type = str(data["feature_type"]) if "feature_type" in data else ""
-        if feature_type != "motion_torque_window":
+        supported = {
+            "motion_window",
+            "motion_torque_window",
+            "causal_motion_torque_window",
+            "profile_motion_torque_window",
+        }
+        if feature_type not in supported:
             raise ValueError(
-                f"The default {args.network} model uses {feature_type!r}, not torque history. "
+                f"The default {args.network} model uses unsupported feature type {feature_type!r}. "
                 f"Retrain it with train_adaptive_dataset.py --network {args.network}."
             )
     return args
@@ -209,6 +218,10 @@ def load_adaptive_model(path):
                 metadata[key] = float(data[key])
         if "torque_scale" in data:
             metadata["torque_scale"] = float(data["torque_scale"])
+        if "stiffness_update_mode" in data:
+            metadata["stiffness_update_mode"] = str(data["stiffness_update_mode"])
+        if "duration" in data:
+            metadata["duration"] = float(data["duration"])
         for key in ["profile_angle_scale", "profile_torque_scale"]:
             if key in data:
                 metadata[key] = float(data[key])
@@ -242,17 +255,33 @@ def adaptive_spring_torque_over_time(
     theta_ddot,
     tau_target,
     model_path,
+    profile_params=None,
 ):
     model, metadata = load_adaptive_model(model_path)
     input_dim = model["w1"].shape[0]
     feature_type = metadata.get("feature_type")
 
-    if feature_type not in {"motion_window", "motion_torque_window"}:
+    torque_history_feature_types = {
+        "motion_torque_window",
+        "causal_motion_torque_window",
+        "profile_motion_torque_window",
+    }
+    if feature_type not in {"motion_window", *torque_history_feature_types}:
         raise ValueError(
             f"Unsupported adaptive feature type {feature_type!r}. "
             "Only causal motion-window models are accepted."
         )
     motion_features = motion_window_features(theta, theta_dot, theta_ddot, metadata)
+    if feature_type == "profile_motion_torque_window":
+        if profile_params is None:
+            raise ValueError(
+                "This adaptive model requires the five target-profile knots. "
+                "Use a named piecewise profile or provide profile metadata with a custom trajectory."
+            )
+        descriptor = profile_descriptor(profile_params, metadata.get("torque_scale", 1.0))
+        motion_features = np.hstack(
+            (motion_features, np.repeat(descriptor[None, :], len(motion_features), axis=0))
+        )
     if model["w2"].shape[1] != len(network.springs):
         raise ValueError(
             f"Adaptive model emits {model['w2'].shape[1]} stiffnesses, but topology has "
@@ -261,7 +290,7 @@ def adaptive_spring_torque_over_time(
     original_stiffness = np.asarray([spring.stiffness_k for spring in network.springs], dtype=float)
     torques = []
     try:
-        if feature_type == "motion_torque_window":
+        if feature_type in torque_history_feature_types:
             window_size = int(metadata["window_size"])
             torque_scale = max(metadata.get("torque_scale", np.max(np.abs(tau_target))), 1e-9)
             torque_history = np.zeros((window_size, 3), dtype=float)
@@ -270,17 +299,28 @@ def adaptive_spring_torque_over_time(
                 f"motion_window model expects {input_dim} inputs, but generated {motion_features.shape[1]}."
             )
 
+        previous_cycle_index = None
         for index, theta_value in enumerate(theta):
-            if feature_type == "motion_torque_window":
+            update_mode = metadata.get("stiffness_update_mode", "timestep")
+            should_update = True
+            if update_mode == "period":
+                if profile_params is None or "frequency_hz" not in profile_params:
+                    raise ValueError("Period-limited models require profile frequency_hz metadata.")
+                sample_time = index * metadata.get("duration", 1.0) / max(len(theta) - 1, 1)
+                cycle_index = int(np.floor(sample_time * profile_params["frequency_hz"] + 1e-9))
+                should_update = index == 0 or cycle_index != previous_cycle_index
+                previous_cycle_index = cycle_index
+
+            if should_update and feature_type in torque_history_feature_types:
                 features = np.concatenate((motion_features[index], torque_history.reshape(-1)))[None, :]
                 if features.shape[1] != input_dim:
                     raise ValueError(
-                        f"motion_torque_window model expects {input_dim} inputs, but generated {features.shape[1]}."
+                        f"{feature_type} model expects {input_dim} inputs, but generated {features.shape[1]}."
                     )
                 stiffness_row = forward(
                     model, features, metadata["min_k"], metadata["max_k"]
                 )[0][0]
-            else:
+            elif should_update:
                 stiffness_row = forward(
                     model, motion_features[index : index + 1], metadata["min_k"], metadata["max_k"]
                 )[0][0]
@@ -288,7 +328,7 @@ def adaptive_spring_torque_over_time(
                 spring.stiffness_k = float(stiffness_value)
             _, _, torque = network.evaluate(float(theta_value), relax_internal=True)
             torques.append(torque)
-            if feature_type == "motion_torque_window":
+            if feature_type in torque_history_feature_types:
                 realized = np.asarray(
                     [tau_target[index], torque, tau_target[index] - torque], dtype=float
                 ) / torque_scale
@@ -590,30 +630,64 @@ def save_summary_csv(path, rows):
 
 def plot_evaluation(path, t, theta, tau_target, tau_spring, metrics, profile):
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(4, 1, figsize=(10, 11), sharex=True, constrained_layout=True)
+    fig, axes = plt.subplots(5, 1, figsize=(10, 14), constrained_layout=True)
 
     axes[0].plot(t, theta, color="black")
     axes[0].set_ylabel("theta [rad]")
     axes[0].set_title(f"Trajectory evaluation: {profile}")
     axes[0].grid(True, alpha=0.25)
 
-    axes[1].plot(t, tau_target, label="target torque", linewidth=1.8)
-    axes[1].plot(t, tau_spring, label="spring torque", linewidth=1.5)
+    axes[1].plot(
+        t,
+        tau_spring + metrics["residual_torque"],
+        color="tab:green", linestyle=":", linewidth=3.0,
+        label="spring + motor",
+        zorder=1,
+    )
+    axes[1].plot(t, tau_spring, color="tab:blue", label="spring torque", linewidth=2.5, zorder=3)
+    axes[1].plot(t, metrics["residual_torque"], color="tab:red", linestyle="-.", label="residual motor torque", linewidth=2.2, zorder=3)
+    axes[1].plot(t, tau_target, color="black", linestyle="--", label="target torque", linewidth=2.0, zorder=4)
     axes[1].set_ylabel("torque [N*m]")
     axes[1].legend()
     axes[1].grid(True, alpha=0.25)
 
-    axes[2].plot(t, metrics["residual_torque"], color="tab:red")
-    axes[2].axhline(0.0, color="0.65", linewidth=1.0)
-    axes[2].set_ylabel("residual [N*m]")
+    angle_order = np.argsort(theta)
+    angle_deg = np.rad2deg(theta)
+    edges = np.linspace(float(np.min(angle_deg)), float(np.max(angle_deg)), 31)
+    bin_index = np.clip(np.digitize(angle_deg, edges) - 1, 0, len(edges) - 2)
+    centers, spring_mean, motor_mean = [], [], []
+    for bin_id in range(len(edges) - 1):
+        mask = bin_index == bin_id
+        if np.any(mask):
+            centers.append(float(np.mean(angle_deg[mask])))
+            spring_mean.append(float(np.mean(tau_spring[mask])))
+            motor_mean.append(float(np.mean(metrics["residual_torque"][mask])))
+    axes[2].scatter(angle_deg, tau_spring, s=12, color="tab:blue", alpha=0.22, label="_nolegend_", zorder=2)
+    axes[2].plot(centers, spring_mean, color="tab:blue", linewidth=3.0, label="mean spring torque", zorder=3)
+    axes[2].scatter(
+        angle_deg,
+        metrics["residual_torque"],
+        s=12, color="tab:red", marker="x", alpha=0.22,
+        label="_nolegend_",
+    )
+    axes[2].plot(centers, motor_mean, color="tab:red", linestyle="-.", linewidth=3.0, label="mean residual motor torque", zorder=3)
+    axes[2].plot(angle_deg[angle_order], tau_target[angle_order], color="black", linestyle="--", linewidth=2.0, label="target torque", zorder=4)
+    axes[2].set_xlabel("joint angle [deg]")
+    axes[2].set_ylabel("torque [N*m]")
+    axes[2].set_title("Learned torque-angle response")
+    axes[2].legend()
     axes[2].grid(True, alpha=0.25)
 
-    axes[3].plot(t, metrics["baseline_energy_burden_power"], label="baseline burden", linewidth=1.8)
-    axes[3].plot(t, metrics["motor_energy_burden_power"], label="with spring", linewidth=1.5)
-    axes[3].set_xlabel("time [s]")
-    axes[3].set_ylabel("energy burden [W]")
-    axes[3].legend()
+    axes[3].plot(t, metrics["residual_torque"], color="tab:red")
+    axes[3].set_ylabel("residual [N*m]")
     axes[3].grid(True, alpha=0.25)
+
+    axes[4].plot(t, metrics["baseline_energy_burden_power"], label="baseline burden", linewidth=1.8)
+    axes[4].plot(t, metrics["motor_energy_burden_power"], label="with spring", linewidth=1.5)
+    axes[4].set_xlabel("time [s]")
+    axes[4].set_ylabel("energy burden [W]")
+    axes[4].legend()
+    axes[4].grid(True, alpha=0.25)
 
     fig.savefig(path, dpi=160)
 
@@ -621,6 +695,7 @@ def plot_evaluation(path, t, theta, tau_target, tau_spring, metrics, profile):
 def evaluate_case(args, profile, duration, samples, amplitude_deg, frequency_hz):
     trajectory = synthetic_trajectory(duration, samples, amplitude_deg, frequency_hz)
     tau_target = generated_target(profile, trajectory["theta"], trajectory["theta_dot"])
+    params = default_profile_named(profile)
     return evaluate_arrays(
         args,
         profile=profile,
@@ -633,6 +708,7 @@ def evaluate_case(args, profile, duration, samples, amplitude_deg, frequency_hz)
         samples=samples,
         amplitude_deg=amplitude_deg,
         frequency_hz=frequency_hz,
+        profile_params=params,
     )
 
 
@@ -648,6 +724,7 @@ def evaluate_arrays(
     samples,
     amplitude_deg,
     frequency_hz,
+    profile_params=None,
 ):
     network, topology = load_network(args.topology)
     if args.adaptive_model:
@@ -658,6 +735,7 @@ def evaluate_arrays(
             theta_ddot,
             tau_target,
             args.adaptive_model,
+            profile_params=profile_params,
         )
         model_name = Path(args.adaptive_model).stem
     else:
@@ -708,6 +786,7 @@ def evaluate_arrays(
 def run_single(args):
     network, topology = load_network(args.topology)
     profile, t, theta, theta_dot, theta_ddot, tau_target = prepare_trajectory(args)
+    profile_params = default_profile_named(profile) if profile and profile.startswith("piecewise_") else None
     if args.adaptive_model:
         tau_spring, model_metadata = adaptive_spring_torque_over_time(
             network,
@@ -716,6 +795,7 @@ def run_single(args):
             theta_ddot,
             tau_target,
             args.adaptive_model,
+            profile_params=profile_params,
         )
         model_name = Path(args.adaptive_model).stem
     else:
@@ -738,12 +818,12 @@ def run_single(args):
     suffix = f"{profile}_{Path(args.adaptive_model).stem}" if args.adaptive_model else profile
     plot_path = output_dir / f"trajectory_evaluation_{suffix}.png"
     csv_path = output_dir / f"trajectory_evaluation_{suffix}.csv"
-    plot_evaluation(plot_path, t, theta, tau_target, tau_spring, metrics, profile)
     save_evaluation_csv(csv_path, t, theta, theta_dot, tau_target, tau_spring, metrics)
     print()
-    print(f"Saved plot to {plot_path}")
+    if not args.no_plot:
+        plot_evaluation(plot_path, t, theta, tau_target, tau_spring, metrics, profile)
+        print(f"Saved plot to {plot_path}")
     print(f"Saved CSV to {csv_path}")
-    plt.show()
 
 
 def parse_float_list(value):
@@ -757,10 +837,10 @@ def generate_batch_profile_parameters(args):
         family_count = len(TERRAIN_FAMILIES)
         if args.batch_count % family_count != 0:
             raise ValueError(
-                f"--batch-count must be divisible by {family_count} so terrain families stay balanced."
+                f"--batch-count must be divisible by {family_count} so shape classes stay balanced."
             )
         profiles_per_family = args.batch_count // family_count
-    return generate_terrain_profile_parameters(rng, profiles_per_family, TERRAIN_FAMILIES)
+    return generate_classified_profile_parameters(rng, profiles_per_family)
 
 
 def run_batch(args):
@@ -773,6 +853,8 @@ def run_batch(args):
             duration=args.duration,
             samples=args.samples,
             seed=args.batch_seed + index,
+            motion_mode=args.motion_mode,
+            fixed_frequency_hz=args.fixed_frequency_hz,
         )
         result = evaluate_arrays(
             args,
@@ -786,8 +868,15 @@ def run_batch(args):
             samples=args.samples,
             amplitude_deg=params["amplitude_deg"],
             frequency_hz=params["frequency_hz"],
+            profile_params=params,
         )
         result["family"] = params["family"]
+        if not args.no_plot and index < args.example_plots:
+            example_path = Path(args.output_dir) / f"batch_example_{index + 1:02d}_{params['name']}.png"
+            plot_evaluation(
+                example_path, result["t"], result["theta"], result["tau_target"],
+                result["tau_spring"], result["metrics"], params["name"]
+            )
         rows.append(
             {
                 key: result[key]
@@ -816,7 +905,7 @@ def run_batch(args):
         )
 
     print_batch_summary(rows)
-    summary_path = PROJECT_ROOT / "tables" / "trajectory_efficiency_summary.csv"
+    summary_path = PROJECT_ROOT / "tables" / "adaptive_stiffness" / "trajectory_efficiency_summary.csv"
     save_summary_csv(summary_path, rows)
     print()
     print(f"Saved batch summary CSV to {summary_path}")
@@ -846,6 +935,17 @@ def main():
         action="store_true",
         help="Disable quasi-static internal-node relaxation.",
     )
+    parser.add_argument(
+        "--no-plot",
+        action="store_true",
+        help="Skip Matplotlib output while still printing metrics and saving the evaluation CSV.",
+    )
+    parser.add_argument(
+        "--example-plots",
+        type=int,
+        default=6,
+        help="Number of batch trajectories exported with torque-time and torque-angle plots (default: 6).",
+    )
     parser.add_argument("--trajectory", default=None, help="Optional CSV trajectory file.")
     parser.add_argument(
         "--profile",
@@ -865,6 +965,18 @@ def main():
     parser.add_argument("--amplitude-deg", type=float, default=30.0, help="Synthetic trajectory amplitude in degrees.")
     parser.add_argument("--frequency-hz", type=float, default=1.0, help="Synthetic trajectory frequency in Hz.")
     parser.add_argument(
+        "--motion-mode",
+        choices=("randomized", "triangular"),
+        default="randomized",
+        help="Motion used for generated batch trajectories.",
+    )
+    parser.add_argument(
+        "--fixed-frequency-hz",
+        type=float,
+        default=None,
+        help="Use one frequency for every generated batch trajectory.",
+    )
+    parser.add_argument(
         "--single",
         action="store_true",
         help="Run only one trajectory using --profile, --duration, --samples, --amplitude-deg, and --frequency-hz.",
@@ -873,7 +985,7 @@ def main():
         "--profiles-per-family",
         type=int,
         default=DEFAULT_BATCH_PROFILES_PER_FAMILY,
-        help="Generated trajectories for each of flat, mixed, and rough terrain (default: 100).",
+        help="Arbitrary profiles for each relative flat, mixed, and rough shape class (default: 100).",
     )
     parser.add_argument(
         "--batch-count",
@@ -896,7 +1008,7 @@ def main():
     )
     parser.add_argument(
         "--output-dir",
-        default=PROJECT_ROOT / "plots" / "trajectory_evaluation",
+        default=PROJECT_ROOT / "plots" / "adaptive_stiffness" / "trajectory_evaluation",
         help="Directory for plot and CSV outputs.",
     )
     args = parser.parse_args()

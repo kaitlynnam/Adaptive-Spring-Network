@@ -96,7 +96,7 @@ def run(topology_path=DEFAULT_TOPOLOGY_PATH):
     model_torque = model_torque_curve(network, angles_rad)
     profiles = target_profiles(angles_rad)
 
-    output_dir = PROJECT_ROOT / "plots" / "torque_profiles"
+    output_dir = PROJECT_ROOT / "plots" / "adaptive_stiffness" / "torque_profiles"
     output_dir.mkdir(exist_ok=True)
     output_path = output_dir / "torque_profile_comparison_baseline_model.png"
 

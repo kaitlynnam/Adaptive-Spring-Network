@@ -23,11 +23,12 @@ from energy_accounting import (
     DEFAULT_REGEN_EFFICIENCY,
     validate_efficiencies,
 )
-from train_adaptive_dataset import generate_motion_trajectory, generate_profile_parameters
+from profile_generator import generate_classified_profile_parameters
+from train_adaptive_dataset import generate_motion_trajectory
 from topology_loader import DEFAULT_TOPOLOGY_PATH
 
 
-DEFAULT_ADAPTIVE_MODEL_PATH = PROJECT_ROOT / "models" / "adaptive_trained_internal_fan_model.npz"
+DEFAULT_ADAPTIVE_MODEL_PATH = PROJECT_ROOT / "models" / "adaptive_stiffness" / "adaptive_stiffness_optimal.npz"
 
 
 def run_model_batch(args, model_name, topology_path, adaptive_model_path, profile_params):
@@ -58,6 +59,7 @@ def run_model_batch(args, model_name, topology_path, adaptive_model_path, profil
             samples=args.samples,
             amplitude_deg=params["amplitude_deg"],
             frequency_hz=params["frequency_hz"],
+            profile_params=params,
         )
         result["model"] = model_name
         result["family"] = params["family"]
@@ -130,7 +132,9 @@ def write_summary_csv(path, summary_rows):
 
 def run(args):
     rng = np.random.default_rng(args.batch_seed)
-    profile_params = generate_profile_parameters(rng, args.batch_count)
+    if args.batch_count % 3 != 0:
+        raise ValueError("--batch-count must be divisible by 3 so shape classes stay balanced.")
+    profile_params = generate_classified_profile_parameters(rng, args.batch_count // 3)
     baseline_topology = args.topology or args.baseline_topology
     adaptive_topology = args.topology or args.adaptive_topology
     model_results = {
@@ -146,7 +150,7 @@ def run(args):
     summary_rows = build_summary_rows(model_results)
     print_summary(summary_rows)
 
-    output_path = PROJECT_ROOT / "tables" / "trajectory_model_comparison.csv"
+    output_path = PROJECT_ROOT / "tables" / "legacy" / "trajectory_model_comparison.csv"
     write_summary_csv(output_path, summary_rows)
     print()
     print(f"Saved trajectory model comparison to {output_path}")
@@ -158,7 +162,7 @@ def main():
     parser.add_argument("--baseline-topology", default=DEFAULT_TOPOLOGY_PATH, help="Fixed baseline topology JSON file.")
     parser.add_argument(
         "--adaptive-topology",
-        default=PROJECT_ROOT / "topologies" / "internal_fan_model.json",
+        default=PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "internal_fan_20_spring_model.json",
         help="Topology paired with the adaptive model.",
     )
     parser.add_argument("--adaptive-model", default=DEFAULT_ADAPTIVE_MODEL_PATH, help="Adaptive trained model .npz file.")

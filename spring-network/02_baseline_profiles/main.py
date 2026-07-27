@@ -15,7 +15,7 @@ def run_demo(topology_path=DEFAULT_TOPOLOGY_PATH, relax_internal=True):
     network, topology = load_network(topology_path)
     angles = np.radians([-35.0, 0.0, 35.0])
 
-    output_dir = PROJECT_ROOT / "plots" / "demos"
+    output_dir = PROJECT_ROOT / "plots" / "adaptive_stiffness" / "demos"
     output_dir.mkdir(exist_ok=True)
 
     print(f"Loaded topology: {topology['name']}")
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--topology",
         default=DEFAULT_TOPOLOGY_PATH,
-        help="Path to a topology JSON file, for example spring-network/topologies/internal_fan_model.json.",
+        help="Path to a topology JSON file, for example spring-network/topologies/adaptive_stiffness/internal_fan_20_spring_model.json.",
     )
     parser.add_argument(
         "--no-relax-internal",

@@ -12,7 +12,10 @@ from physics import spring_force, torque_about_origin
 ANGLE_DEGREES = np.arange(-45.0, 46.0, 5.0)
 
 
-def spring_torque_basis(network, angles_rad, relax_internal=False):
+def spring_torque_basis(
+    network, angles_rad, relax_internal=False, cubic_ratio=0.0,
+    cubic_reference_extension=0.05,
+):
     """Compute torque from each spring at 1 N/m for every angle."""
     basis = np.zeros((len(angles_rad), len(network.springs)), dtype=float)
 
@@ -21,12 +24,16 @@ def spring_torque_basis(network, angles_rad, relax_internal=False):
         for spring_index, spring in enumerate(network.springs):
             node_a = network.nodes[spring.node_a]
             node_b = network.nodes[spring.node_b]
-            force_on_a, _, _ = spring_force(
+            force_on_a, _, stretch = spring_force(
                 node_a.current_position,
                 node_b.current_position,
                 stiffness_k=1.0,
                 rest_length=spring.rest_length,
             )
+            if cubic_ratio:
+                force_on_a = force_on_a * (
+                    1.0 + cubic_ratio * (stretch / cubic_reference_extension) ** 2
+                )
 
             torque = 0.0
             if node_a.type == "limb2":
@@ -69,9 +76,19 @@ def angle_features(angles_rad):
 
 
 def forward(model, features, min_k, max_k):
-    z1 = features @ model["w1"] + model["b1"]
+    # On some Windows Conda installations a one-row NumPy matmul can enter a
+    # conflicting OpenMP/BLAS runtime and terminate the process. Evaluation is
+    # sequential and normally supplies exactly one row, so compute those dot
+    # products directly. Batched training/inference keeps the fast BLAS path.
+    if features.ndim == 2 and features.shape[0] == 1:
+        z1 = np.sum(features[0, :, None] * model["w1"], axis=0, keepdims=True) + model["b1"]
+    else:
+        z1 = features @ model["w1"] + model["b1"]
     hidden = np.tanh(z1)
-    logits = hidden @ model["w2"] + model["b2"]
+    if hidden.ndim == 2 and hidden.shape[0] == 1:
+        logits = np.sum(hidden[0, :, None] * model["w2"], axis=0, keepdims=True) + model["b2"]
+    else:
+        logits = hidden @ model["w2"] + model["b2"]
     sig = sigmoid(logits)
     stiffness = min_k + (max_k - min_k) * sig
     cache = {

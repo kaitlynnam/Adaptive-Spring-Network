@@ -1,0 +1,9 @@
+group,model,cases,average_baseline_motor_energy_j,average_motor_energy_with_spring_j,average_energy_saved_j,average_offload_pct,average_mean_abs_torque_error_nm,average_max_abs_torque_error_nm
+overall,baseline_model,30,135.7909,57.5632,78.2277,61.1664,15.2970,44.8524
+flat_terrain,baseline_model,10,60.5755,22.1405,38.4350,63.7905,7.7630,17.5047
+mixed_terrain,baseline_model,10,133.2937,48.2708,85.0229,66.0894,12.5665,41.1701
+rough_terrain,baseline_model,10,213.5036,102.2784,111.2252,53.6193,25.5615,75.8823
+overall,adaptive_trained_model,30,135.7909,39.3521,96.4388,72.7361,10.6862,29.2290
+flat_terrain,adaptive_trained_model,10,60.5755,14.6773,45.8982,76.9642,5.2173,13.6906
+mixed_terrain,adaptive_trained_model,10,133.2937,33.8960,99.3977,74.3174,8.7123,25.7752
+rough_terrain,adaptive_trained_model,10,213.5036,69.4830,144.0206,66.9266,18.1289,48.2213

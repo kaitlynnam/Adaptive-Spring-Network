@@ -7,7 +7,29 @@ from physics import Spring
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TOPOLOGY_PATH = PROJECT_ROOT / "topologies" / "baseline_model.json"
+DEFAULT_TOPOLOGY_PATH = PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "baseline_model.json"
+
+
+def _load_topology_data(path):
+    with path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    if "base_topology" not in data:
+        return data
+    base = _load_topology_data(path.parent / data["base_topology"])
+    node_overrides = data.get("node_overrides", {})
+    for node in base["nodes"]:
+        if node["name"] in node_overrides:
+            node.update(node_overrides[node["name"]])
+    stiffness_scale = float(data.get("stiffness_scale", 1.0))
+    for spring in base["springs"]:
+        spring["stiffness_k"] *= stiffness_scale
+    base["rest_length_scale"] = float(base.get("rest_length_scale", 1.0)) * float(
+        data.get("rest_length_scale", 1.0)
+    )
+    base["name"] = data.get("name", base["name"])
+    base["description"] = data.get("description", base.get("description", ""))
+    base["derived_from"] = data["base_topology"]
+    return base
 
 
 def load_network(path=DEFAULT_TOPOLOGY_PATH):
@@ -18,8 +40,7 @@ def load_network(path=DEFAULT_TOPOLOGY_PATH):
     topologies separate from the physics code.
     """
     path = Path(path)
-    with path.open("r", encoding="utf-8") as file:
-        data = json.load(file)
+    data = _load_topology_data(path)
 
     return build_network_from_topology(data), data
 
@@ -50,6 +71,10 @@ def build_network_from_topology(data):
 
     if any(spring.rest_length is None for spring in springs):
         network.initialize_rest_lengths(theta=float(data.get("rest_angle_degrees", 0.0)) * 3.141592653589793 / 180.0)
+    rest_length_scale = float(data.get("rest_length_scale", 1.0))
+    if rest_length_scale != 1.0:
+        for spring in springs:
+            spring.rest_length *= rest_length_scale
 
     return network
 

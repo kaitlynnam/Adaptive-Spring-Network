@@ -1,11 +1,11 @@
 import numpy as np
 
 
-ANGLE_LIMIT_RAD = np.deg2rad(44.0)
+ANGLE_LIMIT_RAD = np.deg2rad(45.0)
 DEFAULT_PROFILE_SEED = 17
 DEFAULT_TORQUE_LIMIT_NM = 115.0
 TERRAIN_FAMILIES = ("flat_terrain", "mixed_terrain", "rough_terrain")
-ROUGHNESS_ORDER = TERRAIN_FAMILIES
+PROFILE_CLASSIFICATION = "arbitrary_shape_roughness_v1"
 
 
 def generate_profile_parameters(rng, count):
@@ -17,25 +17,25 @@ def generate_profile_parameters(rng, count):
     return profiles
 
 
-def generate_terrain_profile_parameters(rng, profiles_per_family, families=TERRAIN_FAMILIES):
-    """Generate one random population, then classify it by relative roughness."""
-    families = tuple(families)
-    unknown = set(families) - set(ROUGHNESS_ORDER)
-    if unknown:
-        raise ValueError(f"Unsupported terrain families: {', '.join(sorted(unknown))}")
+def generate_classified_profile_parameters(rng, profiles_per_family):
+    """Generate arbitrary profiles and split them into relative shape-roughness thirds.
 
-    family_order = [family for family in ROUGHNESS_ORDER if family in families]
-    total = profiles_per_family * len(family_order)
-    profiles = []
-    for index in range(total):
-        profile = base_profile_parameters(rng, f"candidate_{index:04d}", "unclassified")
-        profile["knots_tau"] = random_restoring_torque_knots(rng, profile["knots_theta"])
+    The terrain-like names are synthetic shape labels, not labels inferred from
+    measured terrain. Every torque knot is sampled independently before any
+    classification takes place.
+    """
+    if profiles_per_family <= 0:
+        raise ValueError("profiles_per_family must be positive")
+
+    total = profiles_per_family * len(TERRAIN_FAMILIES)
+    profiles = generate_profile_parameters(rng, total)
+    for profile in profiles:
         profile["roughness_score"] = profile_roughness_score(profile)
-        profiles.append(profile)
+        profile["classification"] = PROFILE_CLASSIFICATION
 
     profiles.sort(key=lambda profile: profile["roughness_score"])
     classified = []
-    for family_index, family in enumerate(family_order):
+    for family_index, family in enumerate(TERRAIN_FAMILIES):
         start = family_index * profiles_per_family
         stop = start + profiles_per_family
         for index, profile in enumerate(profiles[start:stop]):
@@ -83,37 +83,45 @@ def random_torque_knots(rng, theta_knots):
     return DEFAULT_TORQUE_LIMIT_NM * normalized
 
 
-def random_restoring_torque_knots(rng, theta_knots):
-    """Sample a random restoring curve before any terrain classification."""
-    k_neg = rng.uniform(50.0, 175.0)
-    k_pos = rng.uniform(50.0, 175.0)
-    cubic = rng.uniform(0.0, 95.0)
-    noise_scale = rng.uniform(0.0, 18.0)
-    stiffness = np.where(theta_knots < 0.0, k_neg, k_pos)
-    torque = -stiffness * theta_knots - cubic * theta_knots**3
-    torque += rng.normal(0.0, noise_scale, size=len(theta_knots))
-    return np.clip(torque, -DEFAULT_TORQUE_LIMIT_NM, DEFAULT_TORQUE_LIMIT_NM)
-
-
 def profile_roughness_score(profile):
-    """Score relative motion irregularity and torque-curve variation in [rougher = larger]."""
+    """Score arbitrary torque-curve complexity relative to linear behavior.
+
+    A straight line scores zero. Smooth single-bend or sinusoidal-like curves
+    score between straight lines and repeatedly reversing zigzags. The score
+    intentionally excludes motion parameters so classification describes the
+    torque-angle profile itself.
+    """
     theta = np.asarray(profile["knots_theta"], dtype=float)
     torque = np.asarray(profile["knots_tau"], dtype=float)
     slopes = np.diff(torque) / np.maximum(np.diff(theta), 1e-9)
+    torque_range = max(float(np.ptp(torque)), 1e-9)
 
-    motion_score = np.mean(
-        [
-            (profile["frequency_hz"] - 0.55) / (1.50 - 0.55),
-            (profile["harmonic_fraction"] - 0.03) / (0.30 - 0.03),
-            profile["bump_count"] / 10.0,
-            (profile["noise_scale"] - 0.001) / (0.034 - 0.001),
-        ]
+    # Closed-form least-squares line. This is equivalent to ``polyfit(..., 1)``
+    # here, while avoiding an unnecessary LAPACK/OpenMP dependency for five
+    # scalar knots.
+    centered_theta = theta - np.mean(theta)
+    slope = np.sum(centered_theta * (torque - np.mean(torque))) / max(
+        float(np.sum(centered_theta**2)), 1e-12
     )
-    slope_magnitude = np.clip(np.mean(np.abs(slopes)) / 250.0, 0.0, 1.0)
-    slope_variation = np.clip(np.std(slopes) / 250.0, 0.0, 1.0)
-    torque_range = np.ptp(torque) / (2.0 * DEFAULT_TORQUE_LIMIT_NM)
-    torque_score = np.mean([slope_magnitude, slope_variation, torque_range])
-    return float(0.6 * motion_score + 0.4 * torque_score)
+    line = np.mean(torque) + slope * centered_theta
+    linear_error = np.clip(np.sqrt(np.mean((torque - line) ** 2)) / torque_range, 0.0, 1.0)
+
+    total_variation_ratio = np.sum(np.abs(np.diff(torque))) / torque_range
+    variation_excess = np.clip((total_variation_ratio - 1.0) / 3.0, 0.0, 1.0)
+
+    slope_rms = max(float(np.sqrt(np.mean(slopes**2))), 1e-9)
+    slope_variation = np.clip(np.std(slopes) / slope_rms, 0.0, 1.0)
+
+    nonzero_signs = np.sign(slopes[np.abs(slopes) > 1e-9])
+    reversals = np.count_nonzero(nonzero_signs[1:] != nonzero_signs[:-1])
+    reversal_fraction = reversals / max(len(slopes) - 1, 1)
+
+    return float(
+        0.35 * linear_error
+        + 0.30 * variation_excess
+        + 0.20 * slope_variation
+        + 0.15 * reversal_fraction
+    )
 
 
 def profile_torque(theta, params):
@@ -127,6 +135,13 @@ def profile_torque(theta, params):
     )
 
 
+def profile_descriptor(params, torque_scale=DEFAULT_TORQUE_LIMIT_NM):
+    """Return the commanded five-knot curve as ten normalized MLP inputs."""
+    angle_features = np.asarray(params["knots_theta"], dtype=float) / ANGLE_LIMIT_RAD
+    torque_features = np.asarray(params["knots_tau"], dtype=float) / max(float(torque_scale), 1e-9)
+    return np.concatenate((angle_features, torque_features))
+
+
 def default_piecewise_profiles(theta, count=3, seed=DEFAULT_PROFILE_SEED):
     rng = np.random.default_rng(seed)
     params = generate_profile_parameters(rng, count)
@@ -134,6 +149,11 @@ def default_piecewise_profiles(theta, count=3, seed=DEFAULT_PROFILE_SEED):
 
 
 def default_profile_named(name, count=3, seed=DEFAULT_PROFILE_SEED):
+    if name.startswith("piecewise_"):
+        try:
+            count = max(count, int(name.removeprefix("piecewise_")) + 1)
+        except ValueError:
+            pass
     rng = np.random.default_rng(seed)
     params = generate_profile_parameters(rng, count)
     for profile in params:
