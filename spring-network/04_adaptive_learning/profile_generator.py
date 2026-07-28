@@ -4,7 +4,7 @@ import numpy as np
 ANGLE_LIMIT_RAD = np.deg2rad(45.0)
 DEFAULT_PROFILE_SEED = 17
 DEFAULT_TORQUE_LIMIT_NM = 115.0
-TERRAIN_FAMILIES = ("flat_terrain", "mixed_terrain", "rough_terrain")
+PROFILE_FAMILIES = ("low_roughness", "medium_roughness", "high_roughness")
 PROFILE_CLASSIFICATION = "arbitrary_shape_roughness_v1"
 
 
@@ -20,14 +20,14 @@ def generate_profile_parameters(rng, count):
 def generate_classified_profile_parameters(rng, profiles_per_family):
     """Generate arbitrary profiles and split them into relative shape-roughness thirds.
 
-    The terrain-like names are synthetic shape labels, not labels inferred from
-    measured terrain. Every torque knot is sampled independently before any
+    The roughness names are synthetic shape labels. Every torque knot is
+    sampled independently before any
     classification takes place.
     """
     if profiles_per_family <= 0:
         raise ValueError("profiles_per_family must be positive")
 
-    total = profiles_per_family * len(TERRAIN_FAMILIES)
+    total = profiles_per_family * len(PROFILE_FAMILIES)
     profiles = generate_profile_parameters(rng, total)
     for profile in profiles:
         profile["roughness_score"] = profile_roughness_score(profile)
@@ -35,7 +35,7 @@ def generate_classified_profile_parameters(rng, profiles_per_family):
 
     profiles.sort(key=lambda profile: profile["roughness_score"])
     classified = []
-    for family_index, family in enumerate(TERRAIN_FAMILIES):
+    for family_index, family in enumerate(PROFILE_FAMILIES):
         start = family_index * profiles_per_family
         stop = start + profiles_per_family
         for index, profile in enumerate(profiles[start:stop]):
@@ -59,7 +59,7 @@ def base_profile_parameters(rng, name, family):
 
 
 def random_motion_parameters(rng):
-    """Sample motion without assigning a terrain label."""
+    """Sample motion without assigning a roughness class."""
     return {
         "amplitude_deg": rng.uniform(16.0, 40.0),
         "frequency_hz": rng.uniform(0.55, 1.50),

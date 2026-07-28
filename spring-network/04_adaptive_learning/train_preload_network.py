@@ -1133,8 +1133,8 @@ def main():
     test_metrics.update(test_energy)
     output_model = PROJECT_ROOT / "models" / "preload" / f"{args.output_name}.pt"
     output_table = PROJECT_ROOT / "tables" / "preload" / f"{args.output_name}_metrics.csv"
-    output_plot = PROJECT_ROOT / "plots" / "preload" / "dataset_examples" / f"{args.output_name}_convergence.png"
-    output_schedule_plot = PROJECT_ROOT / "plots" / "preload" / "dataset_examples" / f"{args.output_name}_schedule.png"
+    output_plot = PROJECT_ROOT / "plots" / "runs" / "preload" / f"{args.output_name}_convergence.png"
+    output_schedule_plot = PROJECT_ROOT / "plots" / "runs" / "preload" / f"{args.output_name}_schedule.png"
     output_model.parent.mkdir(parents=True, exist_ok=True)
     output_table.parent.mkdir(parents=True, exist_ok=True)
     output_plot.parent.mkdir(parents=True, exist_ok=True)

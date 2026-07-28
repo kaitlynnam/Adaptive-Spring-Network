@@ -1,0 +1,207 @@
+{
+  "passed": false,
+  "joint_axis": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "angles_degrees": [
+    -45.0,
+    45.0
+  ],
+  "angle_samples": 19,
+  "relaxation_steps": 300,
+  "all_nodes_used": true,
+  "spring_graph_connected": true,
+  "internal_spring_degrees": {
+    "internal_00": 4,
+    "internal_01": 4,
+    "internal_02": 4,
+    "internal_03": 4,
+    "internal_04": 4,
+    "internal_05": 4,
+    "internal_06": 4,
+    "internal_07": 4,
+    "internal_08": 4,
+    "internal_09": 4,
+    "internal_10": 4,
+    "internal_11": 4
+  },
+  "all_internal_nodes_have_at_least_three_springs": true,
+  "fixed_to_fixed_springs": 0,
+  "same_rigid_body_springs": 0,
+  "skin_to_skin_springs": 0,
+  "lateral_anchor_banks": true,
+  "split_skin_circumferential_coverage": true,
+  "all_limb_nodes_rigidly_supported": true,
+  "maximum_limb_standoff_length_m": 3.725290298461914e-09,
+  "finite_relaxed_geometry": true,
+  "bearing_intersections": 0,
+  "bearing_intersection_examples": [],
+  "limb_intersections": 0,
+  "limb_intersection_examples": [],
+  "minimum_bearing_centerline_radius_m": 0.14111536567942567,
+  "required_bearing_radius_m": 0.12,
+  "minimum_spring_length_m": 0.2894113063812256,
+  "skin_radius_m": 0.74,
+  "joint_boot_radius_m": 0.9,
+  "skin_centerline_containment_violations": 0,
+  "skin_centerline_containment_examples": [],
+  "required_spring_to_spring_clearance_m": 0.032,
+  "minimum_spring_to_spring_clearance_m": 0.0007051190477795899,
+  "spring_to_spring_clearance_violations": 177,
+  "spring_to_spring_clearance_examples": [
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 3,
+      "spring_b": 49,
+      "clearance_m": 0.018810715526342392
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 12,
+      "spring_b": 48,
+      "clearance_m": 0.007858708500862122
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 15,
+      "spring_b": 49,
+      "clearance_m": 0.005746856797486544
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 21,
+      "spring_b": 51,
+      "clearance_m": 0.00971322599798441
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 30,
+      "spring_b": 50,
+      "clearance_m": 0.024882404133677483
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 33,
+      "spring_b": 51,
+      "clearance_m": 0.018205542117357254
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 36,
+      "spring_b": 48,
+      "clearance_m": 0.015036839060485363
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 39,
+      "spring_b": 49,
+      "clearance_m": 0.007588385138660669
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 42,
+      "spring_b": 50,
+      "clearance_m": 0.02257857285439968
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 45,
+      "spring_b": 51,
+      "clearance_m": 0.015571693889796734
+    },
+    {
+      "angle_degrees": -40.00000225146627,
+      "spring_a": 3,
+      "spring_b": 49,
+      "clearance_m": 0.014175621792674065
+    },
+    {
+      "angle_degrees": -40.00000225146627,
+      "spring_a": 12,
+      "spring_b": 48,
+      "clearance_m": 0.012653828598558903
+    },
+    {
+      "angle_degrees": -40.00000225146627,
+      "spring_a": 15,
+      "spring_b": 49,
+      "clearance_m": 0.004168011713773012
+    },
+    {
+      "angle_degrees": -40.00000225146627,
+      "spring_a": 21,
+      "spring_b": 51,
+      "clearance_m": 0.009754772298038006
+    },
+    {
+      "angle_degrees": -40.00000225146627,
+      "spring_a": 30,
+      "spring_b": 50,
+      "clearance_m": 0.026331016793847084
+    },
+    {
+      "angle_degrees": -40.00000225146627,
+      "spring_a": 33,
+      "spring_b": 51,
+      "clearance_m": 0.017956966534256935
+    }
+  ],
+  "worst_spring_collision_counts": [
+    {
+      "spring_index": 51,
+      "collision_states": 58
+    },
+    {
+      "spring_index": 49,
+      "collision_states": 58
+    },
+    {
+      "spring_index": 48,
+      "collision_states": 31
+    },
+    {
+      "spring_index": 50,
+      "collision_states": 30
+    },
+    {
+      "spring_index": 45,
+      "collision_states": 19
+    },
+    {
+      "spring_index": 42,
+      "collision_states": 19
+    },
+    {
+      "spring_index": 36,
+      "collision_states": 19
+    },
+    {
+      "spring_index": 39,
+      "collision_states": 19
+    },
+    {
+      "spring_index": 15,
+      "collision_states": 19
+    },
+    {
+      "spring_index": 21,
+      "collision_states": 19
+    },
+    {
+      "spring_index": 33,
+      "collision_states": 16
+    },
+    {
+      "spring_index": 27,
+      "collision_states": 16
+    }
+  ],
+  "support_radius_m": 0.003,
+  "required_spring_to_support_clearance_m": 0.018,
+  "minimum_spring_to_support_clearance_m": Infinity,
+  "spring_to_support_clearance_violations": 0,
+  "spring_to_support_clearance_examples": [],
+  "scope": "ideal centerline topology; excludes fastener design, spring diameter, self-collision, fatigue, and structural stress"
+}

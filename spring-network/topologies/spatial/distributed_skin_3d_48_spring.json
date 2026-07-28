@@ -1,0 +1,1126 @@
+{
+  "joint_axis": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "bearing_radius": 0.12,
+  "bearing_half_length": 0.13,
+  "bearing_clearance": 0.02,
+  "bearing_collision_penalty": 0.0,
+  "rest_angle_degrees": 0.0,
+  "rest_length_scale": 0.78,
+  "name": "distributed_skin_3d_48_spring",
+  "description": "48 independent circumferential spring lanes between fixed split-skin anchors and opposite-body joint-frame eyelets.",
+  "skin_radius": 0.74,
+  "joint_boot_radius": 0.9,
+  "spring_clearance": 0.032,
+  "nodes": [
+    {
+      "name": "skin1_anchor_00",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        0.74,
+        0.0
+      ]
+    },
+    {
+      "name": "joint2_eyelet_00",
+      "type": "limb2",
+      "position": [
+        0.3,
+        0.44,
+        0.0
+      ]
+    },
+    {
+      "name": "skin1_anchor_01",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        0.7147851114539105,
+        0.19152609337586535
+      ]
+    },
+    {
+      "name": "joint2_eyelet_01",
+      "type": "limb2",
+      "position": [
+        0.55,
+        0.42500736356719004,
+        0.11388037984510913
+      ]
+    },
+    {
+      "name": "skin1_anchor_02",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        0.6408587988004847,
+        0.36999999999999994
+      ]
+    },
+    {
+      "name": "joint2_eyelet_02",
+      "type": "limb2",
+      "position": [
+        0.82,
+        0.381051177665153,
+        0.21999999999999997
+      ]
+    },
+    {
+      "name": "skin1_anchor_03",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        0.5232590180780452,
+        0.5232590180780452
+      ]
+    },
+    {
+      "name": "joint2_eyelet_03",
+      "type": "limb2",
+      "position": [
+        0.3,
+        0.3111269837220809,
+        0.3111269837220809
+      ]
+    },
+    {
+      "name": "skin1_anchor_04",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        0.37000000000000005,
+        0.6408587988004846
+      ]
+    },
+    {
+      "name": "joint2_eyelet_04",
+      "type": "limb2",
+      "position": [
+        0.55,
+        0.22000000000000006,
+        0.381051177665153
+      ]
+    },
+    {
+      "name": "skin1_anchor_05",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        0.19152609337586535,
+        0.7147851114539105
+      ]
+    },
+    {
+      "name": "joint2_eyelet_05",
+      "type": "limb2",
+      "position": [
+        0.82,
+        0.11388037984510913,
+        0.42500736356719004
+      ]
+    },
+    {
+      "name": "skin1_anchor_06",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        4.531193156845207e-17,
+        0.74
+      ]
+    },
+    {
+      "name": "joint2_eyelet_06",
+      "type": "limb2",
+      "position": [
+        0.3,
+        2.694222958124177e-17,
+        0.44
+      ]
+    },
+    {
+      "name": "skin1_anchor_07",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        -0.19152609337586543,
+        0.7147851114539105
+      ]
+    },
+    {
+      "name": "joint2_eyelet_07",
+      "type": "limb2",
+      "position": [
+        0.55,
+        -0.11388037984510918,
+        0.42500736356719004
+      ]
+    },
+    {
+      "name": "skin1_anchor_08",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        -0.36999999999999983,
+        0.6408587988004847
+      ]
+    },
+    {
+      "name": "joint2_eyelet_08",
+      "type": "limb2",
+      "position": [
+        0.82,
+        -0.2199999999999999,
+        0.381051177665153
+      ]
+    },
+    {
+      "name": "skin1_anchor_09",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        -0.5232590180780451,
+        0.5232590180780452
+      ]
+    },
+    {
+      "name": "joint2_eyelet_09",
+      "type": "limb2",
+      "position": [
+        0.3,
+        -0.31112698372208086,
+        0.3111269837220809
+      ]
+    },
+    {
+      "name": "skin1_anchor_10",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        -0.6408587988004847,
+        0.36999999999999994
+      ]
+    },
+    {
+      "name": "joint2_eyelet_10",
+      "type": "limb2",
+      "position": [
+        0.55,
+        -0.381051177665153,
+        0.21999999999999997
+      ]
+    },
+    {
+      "name": "skin1_anchor_11",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        -0.7147851114539104,
+        0.19152609337586554
+      ]
+    },
+    {
+      "name": "joint2_eyelet_11",
+      "type": "limb2",
+      "position": [
+        0.82,
+        -0.42500736356719,
+        0.11388037984510925
+      ]
+    },
+    {
+      "name": "skin1_anchor_12",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        -0.74,
+        9.062386313690413e-17
+      ]
+    },
+    {
+      "name": "joint2_eyelet_12",
+      "type": "limb2",
+      "position": [
+        0.3,
+        -0.44,
+        5.388445916248354e-17
+      ]
+    },
+    {
+      "name": "skin1_anchor_13",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        -0.7147851114539105,
+        -0.19152609337586537
+      ]
+    },
+    {
+      "name": "joint2_eyelet_13",
+      "type": "limb2",
+      "position": [
+        0.55,
+        -0.42500736356719004,
+        -0.11388037984510915
+      ]
+    },
+    {
+      "name": "skin1_anchor_14",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        -0.6408587988004846,
+        -0.37000000000000005
+      ]
+    },
+    {
+      "name": "joint2_eyelet_14",
+      "type": "limb2",
+      "position": [
+        0.82,
+        -0.381051177665153,
+        -0.22000000000000006
+      ]
+    },
+    {
+      "name": "skin1_anchor_15",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        -0.5232590180780453,
+        -0.5232590180780451
+      ]
+    },
+    {
+      "name": "joint2_eyelet_15",
+      "type": "limb2",
+      "position": [
+        0.3,
+        -0.311126983722081,
+        -0.31112698372208086
+      ]
+    },
+    {
+      "name": "skin1_anchor_16",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        -0.37000000000000033,
+        -0.6408587988004845
+      ]
+    },
+    {
+      "name": "joint2_eyelet_16",
+      "type": "limb2",
+      "position": [
+        0.55,
+        -0.2200000000000002,
+        -0.38105117766515295
+      ]
+    },
+    {
+      "name": "skin1_anchor_17",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        -0.19152609337586526,
+        -0.7147851114539105
+      ]
+    },
+    {
+      "name": "joint2_eyelet_17",
+      "type": "limb2",
+      "position": [
+        0.82,
+        -0.11388037984510908,
+        -0.42500736356719004
+      ]
+    },
+    {
+      "name": "skin1_anchor_18",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        -1.359357947053562e-16,
+        -0.74
+      ]
+    },
+    {
+      "name": "joint2_eyelet_18",
+      "type": "limb2",
+      "position": [
+        0.3,
+        -8.08266887437253e-17,
+        -0.44
+      ]
+    },
+    {
+      "name": "skin1_anchor_19",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        0.19152609337586501,
+        -0.7147851114539107
+      ]
+    },
+    {
+      "name": "joint2_eyelet_19",
+      "type": "limb2",
+      "position": [
+        0.55,
+        0.11388037984510893,
+        -0.4250073635671901
+      ]
+    },
+    {
+      "name": "skin1_anchor_20",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        0.37000000000000005,
+        -0.6408587988004846
+      ]
+    },
+    {
+      "name": "joint2_eyelet_20",
+      "type": "limb2",
+      "position": [
+        0.82,
+        0.22000000000000006,
+        -0.381051177665153
+      ]
+    },
+    {
+      "name": "skin1_anchor_21",
+      "type": "skin1",
+      "position": [
+        -0.82,
+        0.523259018078045,
+        -0.5232590180780453
+      ]
+    },
+    {
+      "name": "joint2_eyelet_21",
+      "type": "limb2",
+      "position": [
+        0.3,
+        0.31112698372208086,
+        -0.311126983722081
+      ]
+    },
+    {
+      "name": "skin1_anchor_22",
+      "type": "skin1",
+      "position": [
+        -0.55,
+        0.6408587988004844,
+        -0.37000000000000033
+      ]
+    },
+    {
+      "name": "joint2_eyelet_22",
+      "type": "limb2",
+      "position": [
+        0.55,
+        0.3810511776651529,
+        -0.2200000000000002
+      ]
+    },
+    {
+      "name": "skin1_anchor_23",
+      "type": "skin1",
+      "position": [
+        -0.3,
+        0.7147851114539105,
+        -0.1915260933758653
+      ]
+    },
+    {
+      "name": "joint2_eyelet_23",
+      "type": "limb2",
+      "position": [
+        0.82,
+        0.42500736356719004,
+        -0.1138803798451091
+      ]
+    },
+    {
+      "name": "skin2_anchor_00",
+      "type": "skin2",
+      "position": [
+        0.3,
+        0.7336691974166196,
+        0.09658938224283817
+      ]
+    },
+    {
+      "name": "joint1_eyelet_00",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        0.4362357390044766,
+        0.05743152457682269
+      ]
+    },
+    {
+      "name": "skin2_anchor_01",
+      "type": "skin2",
+      "position": [
+        0.55,
+        0.6836708540583522,
+        0.28318573995016644
+      ]
+    },
+    {
+      "name": "joint1_eyelet_01",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        0.4065069943049662,
+        0.1683807102406395
+      ]
+    },
+    {
+      "name": "skin2_anchor_02",
+      "type": "skin2",
+      "position": [
+        0.82,
+        0.5870814718155141,
+        0.4504834574664533
+      ]
+    },
+    {
+      "name": "joint1_eyelet_02",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        0.34907546972814346,
+        0.2678550287638371
+      ]
+    },
+    {
+      "name": "skin2_anchor_03",
+      "type": "skin2",
+      "position": [
+        0.3,
+        0.4504834574664533,
+        0.5870814718155141
+      ]
+    },
+    {
+      "name": "joint1_eyelet_03",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        0.2678550287638371,
+        0.34907546972814346
+      ]
+    },
+    {
+      "name": "skin2_anchor_04",
+      "type": "skin2",
+      "position": [
+        0.55,
+        0.2831857399501665,
+        0.6836708540583522
+      ]
+    },
+    {
+      "name": "joint1_eyelet_04",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        0.16838071024063953,
+        0.4065069943049662
+      ]
+    },
+    {
+      "name": "skin2_anchor_05",
+      "type": "skin2",
+      "position": [
+        0.82,
+        0.09658938224283826,
+        0.7336691974166196
+      ]
+    },
+    {
+      "name": "joint1_eyelet_05",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        0.057431524576822754,
+        0.4362357390044766
+      ]
+    },
+    {
+      "name": "skin2_anchor_06",
+      "type": "skin2",
+      "position": [
+        0.3,
+        -0.09658938224283818,
+        0.7336691974166196
+      ]
+    },
+    {
+      "name": "joint1_eyelet_06",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        -0.057431524576822705,
+        0.4362357390044766
+      ]
+    },
+    {
+      "name": "skin2_anchor_07",
+      "type": "skin2",
+      "position": [
+        0.55,
+        -0.2831857399501664,
+        0.6836708540583522
+      ]
+    },
+    {
+      "name": "joint1_eyelet_07",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        -0.16838071024063947,
+        0.4065069943049662
+      ]
+    },
+    {
+      "name": "skin2_anchor_08",
+      "type": "skin2",
+      "position": [
+        0.82,
+        -0.4504834574664533,
+        0.5870814718155141
+      ]
+    },
+    {
+      "name": "joint1_eyelet_08",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        -0.2678550287638371,
+        0.34907546972814346
+      ]
+    },
+    {
+      "name": "skin2_anchor_09",
+      "type": "skin2",
+      "position": [
+        0.3,
+        -0.587081471815514,
+        0.45048345746645346
+      ]
+    },
+    {
+      "name": "joint1_eyelet_09",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        -0.3490754697281434,
+        0.2678550287638372
+      ]
+    },
+    {
+      "name": "skin2_anchor_10",
+      "type": "skin2",
+      "position": [
+        0.55,
+        -0.6836708540583522,
+        0.2831857399501665
+      ]
+    },
+    {
+      "name": "joint1_eyelet_10",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        -0.4065069943049662,
+        0.16838071024063955
+      ]
+    },
+    {
+      "name": "skin2_anchor_11",
+      "type": "skin2",
+      "position": [
+        0.82,
+        -0.7336691974166196,
+        0.09658938224283817
+      ]
+    },
+    {
+      "name": "joint1_eyelet_11",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        -0.4362357390044766,
+        0.05743152457682269
+      ]
+    },
+    {
+      "name": "skin2_anchor_12",
+      "type": "skin2",
+      "position": [
+        0.3,
+        -0.7336691974166197,
+        -0.09658938224283797
+      ]
+    },
+    {
+      "name": "joint1_eyelet_12",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        -0.4362357390044766,
+        -0.05743152457682258
+      ]
+    },
+    {
+      "name": "skin2_anchor_13",
+      "type": "skin2",
+      "position": [
+        0.55,
+        -0.6836708540583523,
+        -0.2831857399501663
+      ]
+    },
+    {
+      "name": "joint1_eyelet_13",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        -0.40650699430496623,
+        -0.16838071024063947
+      ]
+    },
+    {
+      "name": "skin2_anchor_14",
+      "type": "skin2",
+      "position": [
+        0.82,
+        -0.5870814718155141,
+        -0.4504834574664533
+      ]
+    },
+    {
+      "name": "joint1_eyelet_14",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        -0.34907546972814346,
+        -0.2678550287638371
+      ]
+    },
+    {
+      "name": "skin2_anchor_15",
+      "type": "skin2",
+      "position": [
+        0.3,
+        -0.45048345746645346,
+        -0.5870814718155138
+      ]
+    },
+    {
+      "name": "joint1_eyelet_15",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        -0.2678550287638372,
+        -0.34907546972814335
+      ]
+    },
+    {
+      "name": "skin2_anchor_16",
+      "type": "skin2",
+      "position": [
+        0.55,
+        -0.2831857399501662,
+        -0.6836708540583523
+      ]
+    },
+    {
+      "name": "joint1_eyelet_16",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        -0.1683807102406394,
+        -0.40650699430496623
+      ]
+    },
+    {
+      "name": "skin2_anchor_17",
+      "type": "skin2",
+      "position": [
+        0.82,
+        -0.09658938224283821,
+        -0.7336691974166196
+      ]
+    },
+    {
+      "name": "joint1_eyelet_17",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        -0.05743152457682272,
+        -0.4362357390044766
+      ]
+    },
+    {
+      "name": "skin2_anchor_18",
+      "type": "skin2",
+      "position": [
+        0.3,
+        0.09658938224283793,
+        -0.7336691974166197
+      ]
+    },
+    {
+      "name": "joint1_eyelet_18",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        0.05743152457682256,
+        -0.4362357390044766
+      ]
+    },
+    {
+      "name": "skin2_anchor_19",
+      "type": "skin2",
+      "position": [
+        0.55,
+        0.2831857399501666,
+        -0.6836708540583522
+      ]
+    },
+    {
+      "name": "joint1_eyelet_19",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        0.1683807102406396,
+        -0.4065069943049661
+      ]
+    },
+    {
+      "name": "skin2_anchor_20",
+      "type": "skin2",
+      "position": [
+        0.82,
+        0.4504834574664532,
+        -0.5870814718155141
+      ]
+    },
+    {
+      "name": "joint1_eyelet_20",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        0.26785502876383704,
+        -0.34907546972814346
+      ]
+    },
+    {
+      "name": "skin2_anchor_21",
+      "type": "skin2",
+      "position": [
+        0.3,
+        0.5870814718155138,
+        -0.4504834574664535
+      ]
+    },
+    {
+      "name": "joint1_eyelet_21",
+      "type": "limb1",
+      "position": [
+        -0.82,
+        0.34907546972814335,
+        -0.2678550287638372
+      ]
+    },
+    {
+      "name": "skin2_anchor_22",
+      "type": "skin2",
+      "position": [
+        0.55,
+        0.6836708540583523,
+        -0.28318573995016627
+      ]
+    },
+    {
+      "name": "joint1_eyelet_22",
+      "type": "limb1",
+      "position": [
+        -0.55,
+        0.40650699430496623,
+        -0.16838071024063941
+      ]
+    },
+    {
+      "name": "skin2_anchor_23",
+      "type": "skin2",
+      "position": [
+        0.82,
+        0.7336691974166196,
+        -0.09658938224283825
+      ]
+    },
+    {
+      "name": "joint1_eyelet_23",
+      "type": "limb1",
+      "position": [
+        -0.3,
+        0.4362357390044766,
+        -0.05743152457682274
+      ]
+    }
+  ],
+  "springs": [
+    {
+      "node_a": "skin1_anchor_00",
+      "node_b": "joint2_eyelet_00",
+      "stiffness_k": 85.0
+    },
+    {
+      "node_a": "skin1_anchor_01",
+      "node_b": "joint2_eyelet_01",
+      "stiffness_k": 85.0
+    },
+    {
+      "node_a": "skin1_anchor_02",
+      "node_b": "joint2_eyelet_02",
+      "stiffness_k": 100.0
+    },
+    {
+      "node_a": "skin1_anchor_03",
+      "node_b": "joint2_eyelet_03",
+      "stiffness_k": 100.0
+    },
+    {
+      "node_a": "skin1_anchor_04",
+      "node_b": "joint2_eyelet_04",
+      "stiffness_k": 120.0
+    },
+    {
+      "node_a": "skin1_anchor_05",
+      "node_b": "joint2_eyelet_05",
+      "stiffness_k": 120.0
+    },
+    {
+      "node_a": "skin1_anchor_06",
+      "node_b": "joint2_eyelet_06",
+      "stiffness_k": 105.0
+    },
+    {
+      "node_a": "skin1_anchor_07",
+      "node_b": "joint2_eyelet_07",
+      "stiffness_k": 105.0
+    },
+    {
+      "node_a": "skin1_anchor_08",
+      "node_b": "joint2_eyelet_08",
+      "stiffness_k": 90.0
+    },
+    {
+      "node_a": "skin1_anchor_09",
+      "node_b": "joint2_eyelet_09",
+      "stiffness_k": 90.0
+    },
+    {
+      "node_a": "skin1_anchor_10",
+      "node_b": "joint2_eyelet_10",
+      "stiffness_k": 72.0
+    },
+    {
+      "node_a": "skin1_anchor_11",
+      "node_b": "joint2_eyelet_11",
+      "stiffness_k": 72.0
+    },
+    {
+      "node_a": "skin1_anchor_12",
+      "node_b": "joint2_eyelet_12",
+      "stiffness_k": 75.0
+    },
+    {
+      "node_a": "skin1_anchor_13",
+      "node_b": "joint2_eyelet_13",
+      "stiffness_k": 110.0
+    },
+    {
+      "node_a": "skin1_anchor_14",
+      "node_b": "joint2_eyelet_14",
+      "stiffness_k": 85.0
+    },
+    {
+      "node_a": "skin1_anchor_15",
+      "node_b": "joint2_eyelet_15",
+      "stiffness_k": 115.0
+    },
+    {
+      "node_a": "skin1_anchor_16",
+      "node_b": "joint2_eyelet_16",
+      "stiffness_k": 95.0
+    },
+    {
+      "node_a": "skin1_anchor_17",
+      "node_b": "joint2_eyelet_17",
+      "stiffness_k": 70.0
+    },
+    {
+      "node_a": "skin1_anchor_18",
+      "node_b": "joint2_eyelet_18",
+      "stiffness_k": 75.0
+    },
+    {
+      "node_a": "skin1_anchor_19",
+      "node_b": "joint2_eyelet_19",
+      "stiffness_k": 110.0
+    },
+    {
+      "node_a": "skin1_anchor_20",
+      "node_b": "joint2_eyelet_20",
+      "stiffness_k": 85.0
+    },
+    {
+      "node_a": "skin1_anchor_21",
+      "node_b": "joint2_eyelet_21",
+      "stiffness_k": 115.0
+    },
+    {
+      "node_a": "skin1_anchor_22",
+      "node_b": "joint2_eyelet_22",
+      "stiffness_k": 95.0
+    },
+    {
+      "node_a": "skin1_anchor_23",
+      "node_b": "joint2_eyelet_23",
+      "stiffness_k": 70.0
+    },
+    {
+      "node_a": "skin2_anchor_00",
+      "node_b": "joint1_eyelet_00",
+      "stiffness_k": 95.0
+    },
+    {
+      "node_a": "skin2_anchor_01",
+      "node_b": "joint1_eyelet_01",
+      "stiffness_k": 82.0
+    },
+    {
+      "node_a": "skin2_anchor_02",
+      "node_b": "joint1_eyelet_02",
+      "stiffness_k": 68.0
+    },
+    {
+      "node_a": "skin2_anchor_03",
+      "node_b": "joint1_eyelet_03",
+      "stiffness_k": 95.0
+    },
+    {
+      "node_a": "skin2_anchor_04",
+      "node_b": "joint1_eyelet_04",
+      "stiffness_k": 82.0
+    },
+    {
+      "node_a": "skin2_anchor_05",
+      "node_b": "joint1_eyelet_05",
+      "stiffness_k": 68.0
+    },
+    {
+      "node_a": "skin2_anchor_06",
+      "node_b": "joint1_eyelet_06",
+      "stiffness_k": 78.0
+    },
+    {
+      "node_a": "skin2_anchor_07",
+      "node_b": "joint1_eyelet_07",
+      "stiffness_k": 78.0
+    },
+    {
+      "node_a": "skin2_anchor_08",
+      "node_b": "joint1_eyelet_08",
+      "stiffness_k": 68.0
+    },
+    {
+      "node_a": "skin2_anchor_09",
+      "node_b": "joint1_eyelet_09",
+      "stiffness_k": 68.0
+    },
+    {
+      "node_a": "skin2_anchor_10",
+      "node_b": "joint1_eyelet_10",
+      "stiffness_k": 58.0
+    },
+    {
+      "node_a": "skin2_anchor_11",
+      "node_b": "joint1_eyelet_11",
+      "stiffness_k": 58.0
+    },
+    {
+      "node_a": "skin2_anchor_12",
+      "node_b": "joint1_eyelet_12",
+      "stiffness_k": 62.0
+    },
+    {
+      "node_a": "skin2_anchor_13",
+      "node_b": "joint1_eyelet_13",
+      "stiffness_k": 62.0
+    },
+    {
+      "node_a": "skin2_anchor_14",
+      "node_b": "joint1_eyelet_14",
+      "stiffness_k": 64.0
+    },
+    {
+      "node_a": "skin2_anchor_15",
+      "node_b": "joint1_eyelet_15",
+      "stiffness_k": 64.0
+    },
+    {
+      "node_a": "skin2_anchor_16",
+      "node_b": "joint1_eyelet_16",
+      "stiffness_k": 74.0
+    },
+    {
+      "node_a": "skin2_anchor_17",
+      "node_b": "joint1_eyelet_17",
+      "stiffness_k": 74.0
+    },
+    {
+      "node_a": "skin2_anchor_18",
+      "node_b": "joint1_eyelet_18",
+      "stiffness_k": 70.0
+    },
+    {
+      "node_a": "skin2_anchor_19",
+      "node_b": "joint1_eyelet_19",
+      "stiffness_k": 70.0
+    },
+    {
+      "node_a": "skin2_anchor_20",
+      "node_b": "joint1_eyelet_20",
+      "stiffness_k": 60.0
+    },
+    {
+      "node_a": "skin2_anchor_21",
+      "node_b": "joint1_eyelet_21",
+      "stiffness_k": 60.0
+    },
+    {
+      "node_a": "skin2_anchor_22",
+      "node_b": "joint1_eyelet_22",
+      "stiffness_k": 56.0
+    },
+    {
+      "node_a": "skin2_anchor_23",
+      "node_b": "joint1_eyelet_23",
+      "stiffness_k": 56.0
+    }
+  ]
+}

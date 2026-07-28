@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from profile_generator import (  # noqa: E402
-    TERRAIN_FAMILIES,
+    PROFILE_FAMILIES,
     default_profile_named,
     generate_classified_profile_parameters,
     generate_profile_parameters,
@@ -45,16 +45,16 @@ class ProfileGeneratorTests(unittest.TestCase):
         profiles = generate_classified_profile_parameters(np.random.default_rng(11), 20)
         grouped = {
             family: [profile for profile in profiles if profile["family"] == family]
-            for family in TERRAIN_FAMILIES
+            for family in PROFILE_FAMILIES
         }
-        self.assertEqual([len(grouped[family]) for family in TERRAIN_FAMILIES], [20, 20, 20])
+        self.assertEqual([len(grouped[family]) for family in PROFILE_FAMILIES], [20, 20, 20])
         self.assertLessEqual(
-            max(profile["roughness_score"] for profile in grouped["flat_terrain"]),
-            min(profile["roughness_score"] for profile in grouped["mixed_terrain"]),
+            max(profile["roughness_score"] for profile in grouped["low_roughness"]),
+            min(profile["roughness_score"] for profile in grouped["medium_roughness"]),
         )
         self.assertLessEqual(
-            max(profile["roughness_score"] for profile in grouped["mixed_terrain"]),
-            min(profile["roughness_score"] for profile in grouped["rough_terrain"]),
+            max(profile["roughness_score"] for profile in grouped["medium_roughness"]),
+            min(profile["roughness_score"] for profile in grouped["high_roughness"]),
         )
 
     def test_named_gallery_profiles_are_not_limited_to_first_three(self):

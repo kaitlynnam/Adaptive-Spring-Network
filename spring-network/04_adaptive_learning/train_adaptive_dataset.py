@@ -35,7 +35,7 @@ from energy_accounting import (
 from profile_generator import (
     ANGLE_LIMIT_RAD,
     PROFILE_CLASSIFICATION,
-    TERRAIN_FAMILIES,
+    PROFILE_FAMILIES,
     generate_classified_profile_parameters,
     generate_profile_parameters,
     profile_descriptor,
@@ -1935,7 +1935,7 @@ def main():
         train_params = generate_classified_profile_parameters(rng, args.profiles_per_family)
         test_params = generate_classified_profile_parameters(rng, args.test_profiles_per_family)
         active_classification = PROFILE_CLASSIFICATION
-        active_families = TERRAIN_FAMILIES
+        active_families = PROFILE_FAMILIES
 
     scales = normalization_scales(
         train_params,
@@ -2249,7 +2249,7 @@ def main():
     output_name = args.output_name
     model_path = output_dir / "models" / "adaptive_stiffness" / f"{output_name}.npz"
     table_dir = output_dir / "tables" / "adaptive_stiffness"
-    plot_dir = output_dir / "plots" / "adaptive_stiffness" / "dataset_examples"
+    plot_dir = output_dir / "plots" / "runs" / "adaptive_stiffness"
     train_table_path = table_dir / f"{output_name}_train_results.csv"
     test_table_path = table_dir / f"{output_name}_test_results.csv"
     torque_trace_path = table_dir / f"{output_name}_test_torque_trace.csv"

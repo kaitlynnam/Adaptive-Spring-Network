@@ -1,5 +1,42 @@
 # Spring Network Simulator Summary
 
+## July 28, 2026: preliminary 3D topology-search update
+
+The repository now also contains a genuine three-dimensional, quasi-static
+spring-network pipeline under `spring-network/01_core_model/mechanics_3d.py`
+and `spring-network/04_adaptive_learning/train_adaptive_3d.py`. This work is
+newer than the 2D results summarized below and is not yet a completed
+paper-quality experiment.
+
+A randomized search evaluated 180 surface-mounted designs with 24, 32, 40,
+48, 56, and 64 linear springs. It varied spring count and continuous 3D node
+positions while requiring 50 mm minimum spring centerline spacing. No
+64-spring candidate passed the quick feasibility screen. The current
+best-found dense-valid candidate is:
+
+`spring-network/topologies/spatial/global_search/candidate_0131_56s.json`
+
+It has 56 springs, 14 free internal nodes, 53.63 mm minimum spring spacing,
+and no detected spring, limb, or bearing intersections over a 181-angle,
+300-step audit. This is the best result found under a finite randomized search,
+not proof of a global optimum.
+
+A preliminary 300-iteration screen on 30 held-out profiles reported 47.34%
+mean offload, but this is not a final paper result. Torque changed by only
+about 0.015-0.018 N*m RMS when final relaxation increased from 800 to
+1200-1600 steps, while a few internal force residuals remained high. The
+reported torque was stable, but worst-state force convergence and
+adaptive-state collision checks remain required.
+
+The 3D mechanics now supports a consistent cubic hardening term in both force
+and potential energy. With cubic ratio 0.5 at a 0.6 m reference extension, the
+static torque-authority proxy increased by roughly 6-7% on the leading
+48/56-spring designs. No matched nonlinear training result exists yet, so
+linear springs remain the selected default.
+
+Exact deferred three-seed, 5000-iteration commands are documented in
+`spring-network/PAPER_RUNS.md`.
+
 > **Current active fan:** `spring-network/topologies/adaptive_stiffness/internal_fan_20_spring_model.json` with 20 springs. The old 40-spring fan, models, plots, tables, Isaac Lab work, and earlier PEJ implementation are retained under archive or legacy folders, but they are not the current training path.
 
 Last updated: 2026-07-27
@@ -195,9 +232,9 @@ Profiles are ranked using:
 15% fraction of segment-direction reversals
 ```
 
-The lowest, middle, and highest thirds are named `flat_terrain`,
-`mixed_terrain`, and `rough_terrain`. These are relative torque-shape classes,
-not terrain labels measured from a robot. Motion parameters do not determine
+The lowest, middle, and highest thirds are named `low_roughness`,
+`medium_roughness`, and `high_roughness`. These are relative torque-shape classes,
+not roughness labels measured from a robot. Motion parameters do not determine
 the class.
 
 ### Periodicity experiments
@@ -257,7 +294,7 @@ For a ten-sample window, the input is:
 
 At timestep `t`, the MLP sees current/past motion and past realized torque. It
 predicts the current command before current torques enter history. Initial
-torque history is zero. It receives no terrain class, roughness score, future
+torque history is zero. It receives no roughness class, roughness score, future
 motion, future target torque, or complete future torque-angle curve.
 
 The current MLP has one `tanh` hidden layer, normally 256 units. Adaptive
@@ -573,7 +610,7 @@ The recent Codex session progressed through these decisions and findings:
    preload pipelines, with Isaac Lab, the 40-spring fan, and older PEJ work
    retained as archive or legacy material.
 2. Strictly causal inputs were confirmed: motion windows and previously
-   realized torque are available, but the future torque curve and terrain
+   realized torque are available, but the future torque curve and roughness
    class are not.
 3. The large difference between the stiffness training surrogate and final
    relaxed mechanics was traced to internal nodes moving when predicted
@@ -610,6 +647,112 @@ The recent Codex session progressed through these decisions and findings:
     300-step relaxed mechanics, linear stiffness as the default, cubic as a
     small-effect ablation, preload reported with both gross and net energy, and
     older 30-step results treated as relaxation artifacts.
+14. A genuine spatial mechanics branch was added. Unlike the rejected layered
+    illustration, it uses real `[x, y, z]` node coordinates, relaxes every
+    internal node in all three coordinates, and projects `r x F` onto the
+    configured revolute-joint axis.
+
+## Preliminary genuine-3D experiment (2026-07-27)
+
+The first spatial experiment uses
+`topologies/spatial/internal_fan_3d_28_spring.json`: 28 nodes, 28 springs, 12
+fixed anchors distributed around a cylindrical joint housing, 6 unconstrained
+3D internal nodes, 4 limb-1 nodes, and 6 rotating limb-2 nodes. The joint is
+still a single revolute degree of freedom (now configured about y); “3D” refers to the spring
+geometry, internal equilibrium, and force calculation rather than a
+three-degree-of-freedom joint.
+
+The matched exploratory run used 6,000 training profiles, 1,200 held-out
+profiles, 160 samples per profile, a ten-sample causal history, two
+operating-point refreshes, 160 relaxation steps per spatial solve, and 5,000
+neural optimizer iterations on CUDA. Runtime was 1,306 seconds.
+
+| Model | Held-out mean RMSE | Held-out median RMSE | Mean motor offload |
+|---|---:|---:|---:|
+| fixed spatial baseline | 61.811 N*m | 61.720 N*m | -20.230% |
+| adaptive spatial | 15.625 N*m | 14.207 N*m | 81.123% |
+
+Training and test means were close (15.680 versus 15.625 N*m), which is
+evidence of good generalization within this synthetic distribution. The large
+gain over the fixed spatial baseline is not evidence that 3D is inherently
+better than the planar model: this is a new 28-spring geometry with different
+preload and torque authority, so a topology-matched planar ablation is still
+required.
+
+The baseline 160-step solve reached a maximum internal force residual of
+0.01089 N. Under learned stiffness schedules, final residuals were 0.101 N
+mean and 2.061 N maximum on held-out data. The torque results are promising
+but preliminary; paper-grade reporting should repeat or audit final evaluation
+at 300 or more relaxation steps, especially for the worst learned
+high-stiffness states.
+
+Spatial artifacts are stored in `models/spatial/`, `plots/spatial/`, and
+`tables/spatial/`. The cleaned topology render is
+`plots/spatial/internal_fan_3d_28_spring_topology.png`.
+
+### Feasible y-axis topology screening
+
+The initial cylindrical/z-axis concept was replaced with a y-axis revolute
+joint, tapered 3D limbs, a shortened bearing, and separate front/back surface
+attachments. A GPU feasibility audit now rejects unused nodes, disconnected
+graphs, fixed-to-fixed springs, free internal nodes with fewer than three
+springs, unsupported limb attachments, and relaxed spring centerlines that
+intersect either limb or the bearing over -45 to +45 degrees.
+
+An early collision-barrier run produced 75.60% held-out offload but had roughly
+60 N mean equilibrium residual and is invalid for mechanics comparison.
+Re-routing the two offending springs removed the need for the stiff barrier.
+The corrected 30-spring baseline reaches 0.0046 N mean residual at 160 steps
+and approximately 0.000009 N at 300 steps on the baseline angle sweep.
+
+Matched preliminary CUDA screens used 3,000 training profiles, 600 held-out
+profiles, 2,000 optimizer iterations, one mechanics refresh, and 160
+relaxation steps:
+
+| Springs | Held-out RMSE | Held-out offload | Mean/max force residual |
+|---:|---:|---:|---:|
+| 24 | 34.072 N*m | 44.661% | 0.0589 / 2.528 N |
+| 30 | 19.540 N*m | 74.032% | 0.0441 / 1.997 N |
+| 36 | **16.436 N*m** | **79.440%** | **0.0255 / 1.533 N** |
+
+That first screen made 36 springs the best configuration tested at that stage,
+but did not establish an optimum. More spring counts, attachment placements,
+seeds, and deeper learned-state evaluation remained necessary.
+
+A second, smaller screen added true top/bottom edge attachments while
+preserving the front/back offset required to avoid the rotating limb. It used
+1,500 training profiles, 300 held-out profiles, 1,000 iterations, one refresh,
+and otherwise matched CUDA mechanics:
+
+| Springs | Held-out RMSE | Held-out offload | Mean/max force residual |
+|---:|---:|---:|---:|
+| 36 | 16.243 N*m | 77.726% | 0.0251 / 1.312 N |
+| 42 | 16.015 N*m | 78.122% | 0.0259 / 2.524 N |
+| 48 | **15.850 N*m** | **79.422%** | 0.0262 / 0.966 N |
+
+Performance was still increasing at 48 springs, but the gains were much
+smaller than the 24-to-30 spring gain. Therefore 48 is the best tested
+topology, not a demonstrated optimum. The fixed baseline also becomes more
+overpowered as springs are added, so adaptive offload, package complexity,
+force limits, and stiffness-actuation cost must eventually be optimized
+together rather than maximizing spring count alone.
+
+A matched 54-spring continuation reduced held-out offload to 78.623% and
+increased RMSE to 15.948 N*m. The observed small-screen pattern therefore
+peaked at 48 springs among 36, 42, 48, and 54. The planned 60-spring run was
+not needed for the practical selection rule: once extra springs reversed the
+gain, 48 was retained as the simpler candidate.
+
+### Deep-relaxation preload spot check
+
+A deliberately small planar preload run used 150 training profiles, 30
+held-out profiles, 200 controller iterations, one refresh, a net-energy
+objective, and 300 nonlinear relaxation steps on CUDA. It produced -18.89%
+held-out gross motor offload and -101.99 J net energy saving (that is, a
+101.99 J net penalty), with only 0.16% RMSE improvement. This is evidence that
+the present 2D preload configuration is not beneficial under this matched
+deep-relaxation setup. It is not a 3D preload result: the preload trainer still
+loads planar topology data and hard-codes planar torque.
 
 ## Historical results retained for context
 
@@ -623,18 +766,18 @@ Historical trajectory summary:
 | Group | Cases | Average offload |
 |---|---:|---:|
 | overall | 30 | 72.62% |
-| flat_terrain | 10 | 76.78% |
-| mixed_terrain | 10 | 74.22% |
-| rough_terrain | 10 | 66.86% |
+| low_roughness | 10 | 76.78% |
+| medium_roughness | 10 | 74.22% |
+| high_roughness | 10 | 66.86% |
 
 Historical fixed-versus-adaptive comparison:
 
 | Group | Fixed | Adaptive |
 |---|---:|---:|
 | overall | 61.17% | 72.62% |
-| flat_terrain | 63.79% | 76.78% |
-| mixed_terrain | 66.09% | 74.22% |
-| rough_terrain | 53.62% | 66.86% |
+| low_roughness | 63.79% | 76.78% |
+| medium_roughness | 66.09% | 74.22% |
+| high_roughness | 53.62% | 66.86% |
 
 Historical window sweep:
 
@@ -651,8 +794,9 @@ choice but require revalidation under the current pipeline.
 
 ## Current limitations
 
-- Single-joint, quasi-static mechanics only.
-- Synthetic terrain names are torque-shape thirds, not measured terrain.
+- Single-joint, quasi-static mechanics only. A spatial spring branch now
+  exists, but the joint itself remains one revolute degree of freedom.
+- Roughness-class names describe thirds of the synthetic torque-shape ranking.
 - Strict causality prevents anticipating unrelated future torque demands.
 - Adaptive stiffness/preload are abstractions rather than complete actuators.
 - Most stiffness optimizer updates use a refreshed local torque basis rather
@@ -686,3 +830,63 @@ choice but require revalidation under the current pipeline.
 7. Validate causal models on measured or project-specific torque trajectories.
 8. Revisit robot rollouts after surrogate, final mechanics, and actuator energy
    agree reliably.
+9. Audit the learned spatial controller at 300 and 500 relaxation steps and
+   build a topology-matched planar ablation before making a 2D-versus-3D claim.
+
+## Paper-figure and table status (updated 2026-07-28)
+
+The curated paper assets are under
+`spring-network/plots/paper_figures/`. Figure 1 shows the selected
+collision-audited candidate 131 topology with 56 linear springs at +25
+degrees. Its original geometry and camera orientation are preserved; only the
+displayed coordinate names are assigned so X is left-right, Y is vertical,
+and Z is forward-back.
+
+Figure 3 is split into two files:
+
+- `fig03a_torque_angle_profiles.png`
+- `fig03b_torque_time_profiles.png`
+
+The three examples are drawn from the deterministically regenerated held-out
+dataset rather than hand-authored curves. Terrain and roughness categories are
+not displayed. The target uses the same black dashed style as the test
+reports. The torque-time figure uses 0.25 Hz for 20 seconds, giving five
+complete cycles with 640 samples.
+
+Figure 4 is one reconstructed held-out test from the saved 48-spring
+checkpoint. Its middle panel shows the piecewise-linear target and relaxed
+spring torque versus joint angle.
+The stiffness heatmap rows are ordered by 3D proximity between neutral-position
+spring midpoints; the row number is therefore not the topology-file Spring ID.
+This ordering changes only the visualization, not the controller or mechanics.
+Collective stiffness transitions are genuine controller outputs: the shared
+MLP updates all springs each timestep, and no stiffness-rate or
+stiffness-change constraint is applied. All three panels use the same causal
+rollout, reconstructed using the checkpoint's saved seed, profile split,
+normalization, 1 Hz motion, duration, sample count, and test-dataset seed.
+
+Publication-table candidates are under
+`spring-network/plots/paper_figures/tables/` in both PNG and CSV form:
+
+- `table01_primary_performance_preliminary` compares fixed and adaptive
+  mechanics for the short candidate-131 screen.
+- `table02_selected_topology_feasibility` reports the dense geometric audit,
+  including 53.63 mm minimum spring clearance against the 50 mm requirement
+  and zero detected spring-spring, limb, or bearing violations.
+- `table03_mechanical_convergence` reports relaxation-depth sensitivity for
+  the preserved 2D linear and cubic mechanics audits.
+
+An earlier spring-count table showing 70-79% offload was removed from the
+paper assets. Those numbers came from older 1,000-iteration runs with 1,500
+training profiles, 300 held-out profiles, 160-step evaluation, and different
+topologies. They are genuine historical outputs but are not comparable to the
+current 56-spring candidate-131 screen, which used only 300 iterations, 90
+training profiles, 30 held-out profiles, and 800-step final evaluation.
+
+The multiple-training-seed robustness figure is implemented but cannot yet be
+populated honestly. Only seed 202 currently exists for candidate 131; other
+saved seeds correspond to different topologies. The matched 5,000-iteration
+GPU runs for seeds 401, 503, and 607 are specified in
+`spring-network/PAPER_RUNS.md`. When their three mechanics-comparison files
+exist, `generate_paper_figures.py` will create
+`fig06_multiple_seed_robustness.png` automatically.

@@ -1,0 +1,142 @@
+{
+  "passed": false,
+  "joint_axis": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "angles_degrees": [
+    -45.0,
+    45.0
+  ],
+  "angle_samples": 181,
+  "relaxation_steps": 300,
+  "all_nodes_used": true,
+  "spring_graph_connected": true,
+  "internal_spring_degrees": {
+    "internal_00": 4,
+    "internal_01": 4,
+    "internal_02": 4,
+    "internal_03": 4,
+    "internal_04": 4,
+    "internal_05": 4,
+    "internal_06": 4,
+    "internal_07": 4,
+    "internal_08": 4,
+    "internal_09": 4,
+    "internal_10": 4,
+    "internal_11": 4
+  },
+  "all_internal_nodes_have_at_least_three_springs": true,
+  "fixed_to_fixed_springs": 0,
+  "same_rigid_body_springs": 0,
+  "skin_to_skin_springs": 0,
+  "lateral_anchor_banks": true,
+  "split_skin_circumferential_coverage": true,
+  "all_limb_nodes_rigidly_supported": true,
+  "maximum_limb_standoff_length_m": 3.725290298461914e-09,
+  "finite_relaxed_geometry": true,
+  "bearing_intersections": 0,
+  "bearing_intersection_examples": [],
+  "limb_intersections": 0,
+  "limb_intersection_examples": [],
+  "minimum_bearing_centerline_radius_m": 0.19411413315912238,
+  "bearing_radius_m": 0.12,
+  "required_bearing_centerline_radius_m": 0.15499999999999997,
+  "minimum_spring_length_m": 0.33611804246902466,
+  "skin_radius_m": 0.74,
+  "joint_boot_radius_m": 0.9,
+  "skin_centerline_containment_violations": 0,
+  "skin_centerline_containment_examples": [],
+  "required_spring_to_spring_clearance_m": 0.032,
+  "minimum_spring_to_spring_clearance_m": 0.0014378123451024294,
+  "spring_to_spring_clearance_violations": 5,
+  "spring_to_spring_clearance_examples": [
+    {
+      "angle_degrees": 37.999999919081475,
+      "spring_a": 10,
+      "spring_b": 21,
+      "clearance_m": 0.025884149596095085
+    },
+    {
+      "angle_degrees": 38.50000050217768,
+      "spring_a": 10,
+      "spring_b": 21,
+      "clearance_m": 0.01822936162352562
+    },
+    {
+      "angle_degrees": 39.00000108527387,
+      "spring_a": 10,
+      "spring_b": 21,
+      "clearance_m": 0.01187140867114067
+    },
+    {
+      "angle_degrees": 39.50000166837007,
+      "spring_a": 10,
+      "spring_b": 21,
+      "clearance_m": 0.00635470962151885
+    },
+    {
+      "angle_degrees": 40.00000225146627,
+      "spring_a": 10,
+      "spring_b": 21,
+      "clearance_m": 0.0014378123451024294
+    }
+  ],
+  "worst_spring_collision_counts": [
+    {
+      "spring_index": 10,
+      "collision_states": 5
+    },
+    {
+      "spring_index": 21,
+      "collision_states": 5
+    },
+    {
+      "spring_index": 47,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 46,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 43,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 42,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 45,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 44,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 39,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 38,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 37,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 36,
+      "collision_states": 0
+    }
+  ],
+  "support_radius_m": 0.003,
+  "required_spring_to_support_clearance_m": 0.018,
+  "minimum_spring_to_support_clearance_m": Infinity,
+  "spring_to_support_clearance_violations": 0,
+  "spring_to_support_clearance_examples": [],
+  "scope": "ideal centerline topology; excludes fastener design, spring diameter, self-collision, fatigue, and structural stress"
+}

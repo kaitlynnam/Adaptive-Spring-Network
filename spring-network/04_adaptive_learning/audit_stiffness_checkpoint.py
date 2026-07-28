@@ -17,7 +17,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from adaptive_model import ANGLE_DEGREES, forward, spring_torque_basis
 from profile_generator import (
-    TERRAIN_FAMILIES,
+    PROFILE_FAMILIES,
     generate_classified_profile_parameters,
 )
 from topology_loader import load_network

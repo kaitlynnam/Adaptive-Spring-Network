@@ -21,7 +21,7 @@ from energy_accounting import (
     validate_efficiencies,
 )
 from profile_generator import (
-    TERRAIN_FAMILIES,
+    PROFILE_FAMILIES,
     default_profile_named,
     generate_classified_profile_parameters,
     profile_descriptor,
@@ -834,7 +834,7 @@ def generate_batch_profile_parameters(args):
     rng = np.random.default_rng(args.batch_seed)
     profiles_per_family = args.profiles_per_family
     if args.batch_count is not None:
-        family_count = len(TERRAIN_FAMILIES)
+        family_count = len(PROFILE_FAMILIES)
         if args.batch_count % family_count != 0:
             raise ValueError(
                 f"--batch-count must be divisible by {family_count} so shape classes stay balanced."
