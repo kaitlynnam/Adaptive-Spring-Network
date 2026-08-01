@@ -4,4 +4,56 @@ The active research implementation is in [`spring-network/`](spring-network/READ
 
 The current experiment trains a strictly causal MLP to control a 20-spring
 internal-fan topology using recent joint motion and realized torque history.
+
+The new profile-conditioned passive trainer selects one spring-stiffness vector
+from the complete five-knot torque-angle profile and holds it fixed throughout
+execution:
+
+```powershell
+python spring-network\04_adaptive_learning\train_profile_conditioned_passive.py `
+  --profiles-per-family 2000 `
+  --test-profiles-per-family 400 `
+  --samples 160 `
+  --iterations 10000 `
+  --energy-weight 30 `
+  --min-stiffness 0 `
+  --unbounded-stiffness `
+  --output-name profile_conditioned_passive
+```
+
+This controller is reconfigurable between supplied profiles but passive within
+each profile. The older timestep-adaptive trainer remains available for
+reproducing prior experiments.
+
+For the genuine 3D mechanics path, train one passive stiffness vector per
+profile on the spatial 60-spring topology with:
+
+```powershell
+python spring-network\04_adaptive_learning\train_profile_conditioned_passive_3d.py `
+  --topology spring-network\topologies\spatial\internal_fan_3d_60_spring.json `
+  --profiles-per-family 2000 `
+  --test-profiles-per-family 400 `
+  --iterations 10000 `
+  --relaxation-steps 300 `
+  --mechanics-correction-phases 2 `
+  --device cuda
+```
+
+The correction phases predict one fixed stiffness vector with the MLP,
+re-relax all 6,000 training profiles at all 160 samples using that vector,
+rebuild the local spring-torque basis from 960,000 relaxed states, and
+fine-tune the same MLP. Positive `--mechanics-correction-profiles` or
+`--mechanics-correction-samples` values are explicit debug-only subset limits;
+their default of zero means the complete dataset.
+
+## Linear 3D passive-spring results
+
+The following figures use exact 300-step relaxed spatial mechanics for the
+held-out profiles of the learned 60-spring linear model:
+
+![Target, passive spring, and residual motor torque versus angle](spring-network/plots/profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_torque_angle.png)
+
+![Target, passive spring, and residual motor torque versus time](spring-network/plots/profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_time_traces.png)
+
+![One fixed stiffness vector per supplied profile](spring-network/plots/profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_stiffness_heatmap.png)
 Research project with The University of Bristol

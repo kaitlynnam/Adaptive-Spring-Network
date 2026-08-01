@@ -51,9 +51,10 @@ def load_spatial_topology(path, device="cpu"):
         "bearing_collision_penalty": float(
             data.get("bearing_collision_penalty", 0.0)
         ),
-        "cubic_ratio": float(data.get("cubic_ratio", 0.0)),
-        "cubic_reference_extension": float(
-            data.get("cubic_reference_extension", 0.05)
+        "nonlinear_power": int(data.get("nonlinear_power", 1)),
+        "nonlinear_ratio": float(data.get("nonlinear_ratio", 0.0)),
+        "nonlinear_reference_extension": float(
+            data.get("nonlinear_reference_extension", 0.6)
         ),
         "internal_indices": torch.as_tensor(
             [i for i, kind in enumerate(node_types) if kind == "internal"],
@@ -93,12 +94,17 @@ def spring_state(topology, positions, stiffness):
     length = torch.linalg.norm(delta, dim=2).clamp_min(1e-9)
     direction = delta / length.unsqueeze(2)
     stretch = length - topology["rest_lengths"].unsqueeze(0)
-    cubic_ratio = topology["cubic_ratio"]
-    reference = max(topology["cubic_reference_extension"], 1e-9)
     force_scale = stiffness * stretch
-    if cubic_ratio:
+    nonlinear_ratio = topology.get("nonlinear_ratio", 0.0)
+    nonlinear_power = topology.get("nonlinear_power", 1)
+    nonlinear_reference = max(
+        topology.get("nonlinear_reference_extension", 0.6), 1e-9
+    )
+    if nonlinear_ratio:
         force_scale = force_scale * (
-            1.0 + cubic_ratio * (stretch / reference) ** 2
+            1.0
+            + nonlinear_ratio
+            * (torch.abs(stretch) / nonlinear_reference) ** (nonlinear_power - 1)
         )
     force_on_a = force_scale.unsqueeze(2) * direction
     return force_on_a, length, stretch
@@ -107,11 +113,20 @@ def spring_state(topology, positions, stiffness):
 def spring_energy(topology, positions, stiffness):
     _, _, stretch = spring_state(topology, positions, stiffness)
     energy = torch.sum(0.5 * stiffness * stretch**2)
-    cubic_ratio = topology["cubic_ratio"]
-    reference = max(topology["cubic_reference_extension"], 1e-9)
-    if cubic_ratio:
+    nonlinear_ratio = topology.get("nonlinear_ratio", 0.0)
+    nonlinear_power = topology.get("nonlinear_power", 1)
+    nonlinear_reference = max(
+        topology.get("nonlinear_reference_extension", 0.6), 1e-9
+    )
+    if nonlinear_ratio:
         energy = energy + torch.sum(
-            0.25 * stiffness * cubic_ratio * stretch**4 / reference**2
+            stiffness
+            * nonlinear_ratio
+            * torch.abs(stretch) ** (nonlinear_power + 1)
+            / (
+                (nonlinear_power + 1)
+                * nonlinear_reference ** (nonlinear_power - 1)
+            )
         )
     radius = topology["bearing_radius"] + topology["bearing_clearance"]
     penalty = topology["bearing_collision_penalty"]
@@ -138,15 +153,30 @@ def spring_energy(topology, positions, stiffness):
     return energy
 
 
-def relax_positions(topology, prescribed, stiffness, steps=160, learning_rate=0.015):
+def relax_positions(
+    topology,
+    prescribed,
+    stiffness,
+    steps=160,
+    learning_rate=0.015,
+    initial_internal=None,
+    force_tolerance=None,
+    min_steps=10,
+    return_iterations=False,
+):
     internal = topology["internal_indices"]
     if internal.numel() == 0 or steps == 0:
-        return prescribed
-    values = prescribed[:, internal, :].detach().clone().requires_grad_(True)
+        return (prescribed, 0) if return_iterations else prescribed
+    if initial_internal is None:
+        initial_internal = prescribed[:, internal, :]
+    if initial_internal.shape != prescribed[:, internal, :].shape:
+        raise ValueError("initial_internal must have shape [batch, internal_nodes, 3]")
+    values = initial_internal.detach().clone().requires_grad_(True)
     use_lbfgs_polish = steps >= 600
     adam_steps = min(300, steps) if use_lbfgs_polish else steps
     optimizer = torch.optim.Adam([values], lr=learning_rate)
     polish_start = max(1, int(0.75 * adam_steps))
+    completed_steps = 0
     for step in range(adam_steps):
         if step == polish_start:
             # A smaller final step suppresses Adam's limit-cycle residuals in
@@ -157,6 +187,20 @@ def relax_positions(topology, prescribed, stiffness, steps=160, learning_rate=0.
         positions[:, internal, :] = values
         spring_energy(topology, positions, stiffness).backward()
         optimizer.step()
+        completed_steps += 1
+        if (
+            force_tolerance is not None
+            and completed_steps >= min_steps
+            and (completed_steps % 5 == 0 or completed_steps == adam_steps)
+        ):
+            probe = prescribed.clone()
+            probe[:, internal, :] = values
+            gradient = torch.autograd.grad(
+                spring_energy(topology, probe, stiffness), values
+            )[0]
+            residual = torch.max(torch.linalg.norm(gradient, dim=2))
+            if float(residual.detach()) <= force_tolerance:
+                break
     if use_lbfgs_polish:
         # Restart Adam at a small step for high-stiffness final evaluation.
         # The restart discards large early-stage moments that otherwise leave
@@ -170,9 +214,23 @@ def relax_positions(topology, prescribed, stiffness, steps=160, learning_rate=0.
             loss = spring_energy(topology, positions, stiffness)
             loss.backward()
             optimizer.step()
+            completed_steps += 1
+            if (
+                force_tolerance is not None
+                and completed_steps >= min_steps
+                and completed_steps % 5 == 0
+            ):
+                probe = prescribed.clone()
+                probe[:, internal, :] = values
+                gradient = torch.autograd.grad(
+                    spring_energy(topology, probe, stiffness), values
+                )[0]
+                residual = torch.max(torch.linalg.norm(gradient, dim=2))
+                if float(residual.detach()) <= force_tolerance:
+                    break
     positions = prescribed.clone()
     positions[:, internal, :] = values.detach()
-    return positions
+    return (positions, completed_steps) if return_iterations else positions
 
 
 def torque_components(topology, theta, stiffness, relaxation_steps=160):
@@ -183,12 +241,28 @@ def torque_components(topology, theta, stiffness, relaxation_steps=160):
 
 
 def torque_components_and_residual(
-    topology, theta, stiffness, relaxation_steps=160
+    topology,
+    theta,
+    stiffness,
+    relaxation_steps=160,
+    initial_internal=None,
+    force_tolerance=None,
+    return_iterations=False,
 ):
     """Return per-spring joint torque and the relaxed internal-force residual."""
-    positions = relax_positions(
-        topology, prescribed_positions(topology, theta), stiffness, relaxation_steps
+    relaxed = relax_positions(
+        topology,
+        prescribed_positions(topology, theta),
+        stiffness,
+        relaxation_steps,
+        initial_internal=initial_internal,
+        force_tolerance=force_tolerance,
+        return_iterations=return_iterations,
     )
+    if return_iterations:
+        positions, completed_steps = relaxed
+    else:
+        positions, completed_steps = relaxed, None
     force_on_a, _, _ = spring_state(topology, positions, stiffness)
     internal = topology["internal_indices"]
     if internal.numel():
@@ -201,13 +275,36 @@ def torque_components_and_residual(
         ).values
     else:
         residual = torch.zeros(len(theta), device=theta.device)
-    return torque_components_from_state(topology, positions, force_on_a), residual, positions
-
-
-def torque_and_residual(topology, theta, stiffness, relaxation_steps=160):
-    components, residual, positions = torque_components_and_residual(
-        topology, theta, stiffness, relaxation_steps
+    result = (
+        torque_components_from_state(topology, positions, force_on_a),
+        residual,
+        positions,
     )
+    return (*result, completed_steps) if return_iterations else result
+
+
+def torque_and_residual(
+    topology,
+    theta,
+    stiffness,
+    relaxation_steps=160,
+    initial_internal=None,
+    force_tolerance=None,
+    return_iterations=False,
+):
+    result = torque_components_and_residual(
+        topology,
+        theta,
+        stiffness,
+        relaxation_steps,
+        initial_internal=initial_internal,
+        force_tolerance=force_tolerance,
+        return_iterations=return_iterations,
+    )
+    if return_iterations:
+        components, residual, positions, iterations = result
+        return torch.sum(components, dim=1), residual, positions, iterations
+    components, residual, positions = result
     return torch.sum(components, dim=1), residual, positions
 
 
