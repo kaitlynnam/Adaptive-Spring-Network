@@ -1,6 +1,0 @@
-variant,internal_radius_m,joint_radius_m,phase_degrees,feasibility,minimum_clearance_m,heldout_mean_rmse_nm,heldout_mean_offload_pct,test_residual_mean_n,test_residual_max_n
-compact,0.30,0.20,7.5,pass,0.1165169,36.5689,37.652,0.06896,0.87837
-baseline,0.34,0.23,7.5,pass,0.1229433,35.6832,39.110,0.09230,0.92495
-offset,0.34,0.23,15.0,pass,0.0719553,35.8647,38.773,0.03437,0.91316
-wide,0.40,0.26,7.5,fail,0.0241318,,,,
-aligned,0.34,0.23,0.0,fail,0.0159946,,,,

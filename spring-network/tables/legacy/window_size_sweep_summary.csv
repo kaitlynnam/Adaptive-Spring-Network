@@ -1,5 +1,0 @@
-window_size,overall_offload_pct,flat_offload_pct,mixed_offload_pct,rough_offload_pct,overall_mean_abs_torque_error_nm
-5,61.8604,77.1484,57.7531,50.6798,15.2809
-10,67.8332,85.9453,64.3254,53.2290,16.2259
-15,57.9511,74.9178,51.5286,47.4070,18.3233
-20,53.6793,66.3202,48.6525,46.0652,17.1848

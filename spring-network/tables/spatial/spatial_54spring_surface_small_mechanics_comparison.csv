@@ -1,3 +1,0 @@
-model,mechanics,profiles,mean_rmse_nm,median_rmse_nm,mean_offload_pct,median_offload_pct,mean_abs_residual_nm,max_peak_abs_residual_nm
-fixed_spatial_baseline,relaxed_3d,300,110.699607,111.148167,-123.856755,-110.306866,92.230851,312.083858
-adaptive_spatial,relaxed_3d,300,15.947541,14.656582,78.622568,81.376217,9.071375,198.951992
