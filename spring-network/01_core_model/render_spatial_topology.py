@@ -20,10 +20,10 @@ from mechanics_3d import load_spatial_topology, prescribed_positions, relax_posi
 
 
 TOPOLOGY_PATH = (
-    PROJECT_ROOT / "topologies" / "spatial" / "internal_fan_3d_48_spring_densest.json"
+    PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
 )
 OUTPUT_PATH = (
-    PROJECT_ROOT / "plots" / "spatial" / "internal_fan_3d_48_spring_rest.png"
+    PROJECT_ROOT / "plots" / "profile_conditioned_passive_3d" / "hybrid_internal_skin_3d_60_spring_rest.png"
 )
 TYPE_COLOR = {
     "fixed": "#343a40",
@@ -275,6 +275,6 @@ if __name__ == "__main__":
             PROJECT_ROOT
             / "plots"
             / "spatial"
-            / f"internal_fan_3d_30_spring_bent_{suffix}_45deg.png"
+            / f"internal_fan_3d_60_spring_bent_{suffix}_45deg.png"
         )
         print(render(output_path=bent_output, angle_degrees=bend))

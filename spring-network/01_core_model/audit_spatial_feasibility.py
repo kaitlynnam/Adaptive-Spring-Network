@@ -16,7 +16,7 @@ from mechanics_3d import load_spatial_topology, prescribed_positions, relax_posi
 
 
 DEFAULT_TOPOLOGY = (
-    PROJECT_ROOT / "topologies" / "spatial" / "internal_fan_3d_48_spring_densest.json"
+    PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
 )
 
 

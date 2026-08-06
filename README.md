@@ -2,10 +2,20 @@
 
 The active research implementation is in [`spring-network/`](spring-network/README.md).
 
-The current experiment trains a strictly causal MLP to control a 20-spring
-internal-fan topology using recent joint motion and realized torque history.
+The active causal period-adaptive trainer runs the first period at the topology's
+default stiffness, buffers that complete period's motion and realized torques,
+then updates the 3D network's 60 stiffnesses once at the boundary. The selected
+stiffness vector is held unchanged for the entire following period. Run it with:
 
-The new profile-conditioned passive trainer selects one spring-stiffness vector
+```powershell
+python spring-network/04_adaptive_learning/train_period_adaptive_3d.py
+```
+
+The run automatically saves training convergence, torque-versus-time,
+torque-versus-angle, and period-level stiffness-schedule figures under
+`spring-network/plots/period_adaptive_3d/`, plus an exact-mechanics summary CSV.
+
+The former profile-conditioned passive trainer selects one spring-stiffness vector
 from the complete five-knot torque-angle profile and holds it fixed throughout
 execution:
 
@@ -22,21 +32,14 @@ python spring-network\04_adaptive_learning\train_profile_conditioned_passive.py 
 ```
 
 This controller is reconfigurable between supplied profiles but passive within
-each profile. The older timestep-adaptive trainer remains available for
-reproducing prior experiments.
+each profile. The former timestep-adaptive pipeline is preserved under
+`spring-network/archive/timestep_adaptation/` and is no longer active.
 
 For the genuine 3D mechanics path, train one passive stiffness vector per
 profile on the spatial 60-spring topology with:
 
 ```powershell
-python spring-network\04_adaptive_learning\train_profile_conditioned_passive_3d.py `
-  --topology spring-network\topologies\spatial\internal_fan_3d_60_spring.json `
-  --profiles-per-family 2000 `
-  --test-profiles-per-family 400 `
-  --iterations 10000 `
-  --relaxation-steps 300 `
-  --mechanics-correction-phases 2 `
-  --device cuda
+conda run -n adaptive-spring-network python run_full_refresh.py
 ```
 
 The correction phases predict one fixed stiffness vector with the MLP,

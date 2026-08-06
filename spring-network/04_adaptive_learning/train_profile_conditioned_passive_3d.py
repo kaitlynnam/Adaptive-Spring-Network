@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse
 import sys
+import time
 
 import numpy as np
 import torch
@@ -17,11 +18,7 @@ from benchmark_profile_passive_3d import (
     spatial_initial_basis,
 )
 from mechanics_3d import load_spatial_topology, torque_components
-from profile_generator import (
-    PROFILE_CLASSIFICATION,
-    PROFILE_FAMILIES,
-    generate_classified_profile_parameters,
-)
+from profile_generator import generate_profile_parameters
 from train_profile_conditioned_passive import (
     build_profile_dataset,
     expand_profile_stiffness,
@@ -33,7 +30,7 @@ from train_profile_conditioned_passive import (
 )
 
 DEFAULT_TOPOLOGY = (
-    PROJECT_ROOT / "topologies" / "spatial" / "internal_fan_3d_60_spring.json"
+    PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
 )
 
 
@@ -73,6 +70,8 @@ def refresh_mlp_spatial_basis(
     min_stiffness,
     relaxation_steps,
     batch_size=512,
+    progress_batches=0,
+    progress_label="Mechanics refresh",
 ):
     """Re-relax 3D mechanics at the MLP's one-vector-per-profile predictions."""
     stiffness = predict_profile_stiffness(
@@ -84,7 +83,9 @@ def refresh_mlp_spatial_basis(
     theta = dataset["theta"].reshape(-1)
     components = np.empty_like(schedule)
     device = topology["local_positions"].device
-    for start in range(0, len(theta), batch_size):
+    total_batches = int(np.ceil(len(theta) / batch_size))
+    started = time.perf_counter()
+    for batch_index, start in enumerate(range(0, len(theta), batch_size), start=1):
         stop = min(start + batch_size, len(theta))
         theta_batch = torch.as_tensor(
             theta[start:stop], dtype=torch.float32, device=device
@@ -96,6 +97,20 @@ def refresh_mlp_spatial_basis(
             topology, theta_batch, stiffness_batch, relaxation_steps
         )
         components[start:stop] = values.detach().cpu().numpy()
+        if progress_batches > 0 and (
+            batch_index == 1
+            or batch_index == total_batches
+            or batch_index % progress_batches == 0
+        ):
+            elapsed = time.perf_counter() - started
+            rate = batch_index / max(elapsed, 1e-9)
+            eta = (total_batches - batch_index) / max(rate, 1e-9)
+            print(
+                f"{progress_label}: {batch_index}/{total_batches} batches "
+                f"({100.0 * batch_index / total_batches:5.1f}%) | "
+                f"elapsed {elapsed / 60.0:6.1f} min | ETA {eta / 60.0:6.1f} min",
+                flush=True,
+            )
     refreshed = dict(dataset)
     refreshed["basis"] = (
         components / np.maximum(schedule, 1e-6)
@@ -106,10 +121,19 @@ def refresh_mlp_spatial_basis(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--topology", type=Path, default=DEFAULT_TOPOLOGY)
-    parser.add_argument("--profiles-per-family", type=int, default=2000)
-    parser.add_argument("--test-profiles-per-family", type=int, default=400)
+    parser.add_argument("--training-profiles", type=int, default=6000)
+    parser.add_argument("--test-profiles", type=int, default=1200)
     parser.add_argument("--duration", type=float, default=5.0)
     parser.add_argument("--samples", type=int, default=160)
+    parser.add_argument(
+        "--motion-mode", choices=["triangular", "randomized"], default="triangular"
+    )
+    parser.add_argument(
+        "--fixed-frequency-hz",
+        type=float,
+        default=0.2,
+        help="Fixed sweep frequency; 0.2 Hz gives one full cycle in five seconds.",
+    )
     parser.add_argument("--iterations", type=int, default=10000)
     parser.add_argument("--hidden-dim", type=int, default=256)
     parser.add_argument("--learning-rate", type=float, default=0.01)
@@ -131,8 +155,7 @@ def main():
     )
     parser.add_argument("--nonlinear-reference-extension", type=float, default=0.6)
     parser.add_argument("--mechanics-batch-size", type=int, default=1024)
-    parser.add_argument("--motoring-efficiency", type=float, default=0.85)
-    parser.add_argument("--regen-efficiency", type=float, default=0.60)
+    parser.add_argument("--mechanics-progress-batches", type=int, default=10)
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--seed", type=int, default=101)
     parser.add_argument("--progress-interval", type=int, default=1000)
@@ -145,8 +168,8 @@ def main():
     parser.add_argument(
         "--mechanics-correction-profiles",
         type=int,
-        default=0,
-        help="Profiles per refresh; 0 uses all training profiles (default).",
+        default=600,
+        help="Profiles per correction phase; default 600, while 0 uses all 6000.",
     )
     parser.add_argument(
         "--mechanics-correction-samples",
@@ -158,8 +181,14 @@ def main():
     parser.add_argument("--mechanics-correction-learning-rate", type=float, default=0.001)
     parser.add_argument("--output-name", default="profile_passive_3d_60spring")
     args = parser.parse_args()
+    # Current paper metric is ideal mechanical motor work: 100% motoring and
+    # no regenerative credit, so burden power is |motor torque * velocity|.
+    motoring_efficiency = 1.0
+    regen_efficiency = 0.0
     if args.device == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but unavailable")
+    if args.fixed_frequency_hz <= 0.0:
+        parser.error("--fixed-frequency-hz must be positive")
     topology = load_spatial_topology(args.topology, torch.device(args.device))
     if args.nonlinear_ratio < 0.0:
         parser.error("--nonlinear-ratio must be nonnegative")
@@ -173,14 +202,22 @@ def main():
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, args.relaxation_steps)
     rng = np.random.default_rng(args.seed)
-    train_profiles = generate_classified_profile_parameters(rng, args.profiles_per_family)
-    test_profiles = generate_classified_profile_parameters(rng, args.test_profiles_per_family)
+    train_profiles = generate_profile_parameters(rng, args.training_profiles)
+    test_profiles = generate_profile_parameters(rng, args.test_profiles)
     common = (angles, basis, args.duration, args.samples)
     train = build_profile_dataset(
-        train_profiles, *common, args.seed + 20_000
+        train_profiles,
+        *common,
+        args.seed + 20_000,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
     test = build_profile_dataset(
-        test_profiles, *common, args.seed + 30_000
+        test_profiles,
+        *common,
+        args.seed + 30_000,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
     )
     base_k = topology["initial_stiffness"].detach().cpu().numpy()
     model, history = train_profile_model(
@@ -194,8 +231,8 @@ def main():
         0.0,
         args.energy_weight,
         0.0,
-        args.motoring_efficiency,
-        args.regen_efficiency,
+        motoring_efficiency,
+        regen_efficiency,
         args.seed,
         device=args.device,
         progress_interval=args.progress_interval,
@@ -227,6 +264,8 @@ def main():
             args.min_stiffness,
             args.relaxation_steps,
             args.mechanics_batch_size,
+            args.mechanics_progress_batches,
+            f"Mechanics correction {phase}/{args.mechanics_correction_phases}",
         )
         model, phase_history = train_profile_model(
             correction,
@@ -239,8 +278,8 @@ def main():
             0.0,
             args.energy_weight,
             0.0,
-            args.motoring_efficiency,
-            args.regen_efficiency,
+            motoring_efficiency,
+            regen_efficiency,
             args.seed + phase,
             device=args.device,
             progress_interval=args.progress_interval,
@@ -256,14 +295,20 @@ def main():
         model, test, args.min_stiffness, 1.0, unbounded_stiffness=True
     )
     torque, force_residual = relaxed_spatial_profile_torque(
-        test, topology, test_k, args.relaxation_steps, args.mechanics_batch_size
+        test,
+        topology,
+        test_k,
+        args.relaxation_steps,
+        args.mechanics_batch_size,
+        progress_batches=args.mechanics_progress_batches,
+        progress_label="Held-out exact mechanics",
     )
     rows = summary_rows(
         test_profiles, test, torque, test_k,
-        args.motoring_efficiency, args.regen_efficiency
+        motoring_efficiency, regen_efficiency
     )
-    baseline = sum(row["baseline_energy_burden_j"] for row in rows)
-    assisted = sum(row["assisted_energy_burden_j"] for row in rows)
+    baseline = sum(row["baseline_motor_work_j"] for row in rows)
+    assisted = sum(row["assisted_motor_work_j"] for row in rows)
     offload = 100.0 * (baseline - assisted) / baseline
     print(f"Held-out exact 3D aggregate offload: {offload:.3f}%")
     print(f"Mean profile offload: {np.mean([r['offload_pct'] for r in rows]):.3f}%")
@@ -286,8 +331,9 @@ def main():
         feature_type="five_knot_torque_angle_profile",
         topology=str(args.topology),
         spring_count=len(base_k),
-        profile_classification=PROFILE_CLASSIFICATION,
-        profile_families=np.asarray(PROFILE_FAMILIES),
+        profile_generation="unclassified_random_piecewise_linear",
+        training_profiles=args.training_profiles,
+        test_profiles=args.test_profiles,
         relaxation_steps=args.relaxation_steps,
         mechanics_correction_phases=args.mechanics_correction_phases,
         mechanics_correction_profiles=args.mechanics_correction_profiles,
@@ -306,6 +352,13 @@ def main():
         nonlinear_ratio=args.nonlinear_ratio,
         nonlinear_reference_extension=args.nonlinear_reference_extension,
         seed=args.seed,
+        motion_mode=args.motion_mode,
+        fixed_frequency_hz=args.fixed_frequency_hz,
+        duration=args.duration,
+        samples=args.samples,
+        energy_metric="ideal_absolute_motor_mechanical_work",
+        motoring_efficiency=motoring_efficiency,
+        regen_efficiency=regen_efficiency,
     )
     write_rows(table_dir / f"{args.output_name}_test_results.csv", rows)
     write_stiffness_rows(
@@ -314,8 +367,8 @@ def main():
     write_rows(
         table_dir / f"{args.output_name}_training_history.csv",
         [
-            {"iteration": i, "residual_rmse_nm": r, "loss": loss, "energy_ratio": energy}
-            for i, r, loss, energy in history
+            {"iteration": i, "residual_rmse_nm": r, "loss": loss, "offload_pct": offload}
+            for i, r, loss, offload in history
         ],
     )
 

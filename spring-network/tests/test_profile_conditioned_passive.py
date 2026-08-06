@@ -9,6 +9,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from adaptive_model import forward, initialize_model  # noqa: E402
+from passive_mechanics import generate_motion_trajectory  # noqa: E402
+from profile_generator import default_profile_named  # noqa: E402
 from train_profile_conditioned_passive import (  # noqa: E402
     distill_profile_model,
     expand_profile_stiffness,
@@ -22,6 +24,7 @@ from benchmark_profile_passive_3d import (  # noqa: E402
 )
 from mechanics_3d import load_spatial_topology  # noqa: E402
 from train_profile_conditioned_passive_3d import (  # noqa: E402
+    DEFAULT_TOPOLOGY,
     correction_indices,
     refresh_mlp_spatial_basis,
     subset_profile_dataset,
@@ -29,6 +32,31 @@ from train_profile_conditioned_passive_3d import (  # noqa: E402
 
 
 class ProfileConditionedPassiveTests(unittest.TestCase):
+    def test_canonical_triangular_motion_covers_angles_without_profile_weighting(self):
+        profile = default_profile_named("piecewise_0000")
+        _, theta, theta_dot, _, _ = generate_motion_trajectory(
+            profile,
+            duration=5.0,
+            samples=160,
+            seed=1,
+            motion_mode="triangular",
+            fixed_frequency_hz=0.2,
+        )
+        self.assertAlmostEqual(float(np.min(theta)), -np.pi / 4, places=7)
+        self.assertGreater(float(np.max(theta)), np.deg2rad(44.0))
+        histogram, _ = np.histogram(theta, bins=8, range=(-np.pi / 4, np.pi / 4))
+        self.assertLessEqual(int(np.max(histogram) - np.min(histogram)), 2)
+        moving = np.abs(theta_dot[1:]) > 1e-8
+        self.assertLess(float(np.std(np.abs(theta_dot[1:][moving]))), 0.08)
+
+    def test_active_3d_default_is_the_60_spring_topology(self):
+        self.assertEqual(DEFAULT_TOPOLOGY.name, "hybrid_internal_skin_3d_60_spring.json")
+        topology = load_spatial_topology(DEFAULT_TOPOLOGY, "cpu")
+        self.assertEqual(len(topology["spring_a"]), 60)
+        self.assertEqual(len(topology["initial_stiffness"]), 60)
+        self.assertEqual(topology["node_types"].count("skin1"), 18)
+        self.assertEqual(topology["node_types"].count("skin2"), 18)
+
     def test_one_profile_stiffness_is_constant_across_all_samples(self):
         stiffness = np.asarray([[10.0, 20.0], [30.0, 40.0]])
         schedule = expand_profile_stiffness(stiffness, samples=7)
@@ -67,7 +95,7 @@ class ProfileConditionedPassiveTests(unittest.TestCase):
             profiles, dataset, dataset["target"], np.asarray([[10.0]])
         )
         self.assertAlmostEqual(rows[0]["offload_pct"], 100.0)
-        self.assertAlmostEqual(rows[0]["assisted_energy_burden_j"], 0.0)
+        self.assertAlmostEqual(rows[0]["assisted_motor_work_j"], 0.0)
 
     def test_energy_burden_integrates_over_time(self):
         burden = profile_energy_burden(
@@ -151,7 +179,7 @@ class ProfileConditionedPassiveTests(unittest.TestCase):
             PROJECT_ROOT
             / "topologies"
             / "spatial"
-            / "internal_fan_3d_24_spring_sparse.json"
+            / "hybrid_internal_skin_3d_60_spring.json"
         )
         topology = load_spatial_topology(path, "cpu")
         stiffness = topology["initial_stiffness"].detach().numpy()[None, :]

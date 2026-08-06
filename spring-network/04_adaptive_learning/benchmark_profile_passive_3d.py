@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse
 import sys
+import time
 
 import numpy as np
 import torch
@@ -25,7 +26,7 @@ from train_profile_conditioned_passive import (
 )
 
 DEFAULT_TOPOLOGY = (
-    PROJECT_ROOT / "topologies" / "spatial" / "internal_fan_3d_30_spring_optimized.json"
+    PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
 )
 
 
@@ -48,6 +49,8 @@ def relaxed_spatial_profile_torque(
     profile_stiffness,
     relaxation_steps,
     batch_size=1024,
+    progress_batches=0,
+    progress_label="Exact mechanics",
 ):
     """Evaluate one constant stiffness vector per profile in full 3D mechanics."""
     schedule = expand_profile_stiffness(
@@ -57,7 +60,9 @@ def relaxed_spatial_profile_torque(
     torque = np.empty(len(theta), dtype=float)
     force_residual = np.empty(len(theta), dtype=float)
     device = topology["local_positions"].device
-    for start in range(0, len(theta), batch_size):
+    total_batches = int(np.ceil(len(theta) / batch_size))
+    started = time.perf_counter()
+    for batch_index, start in enumerate(range(0, len(theta), batch_size), start=1):
         stop = min(start + batch_size, len(theta))
         theta_batch = torch.as_tensor(
             theta[start:stop], dtype=torch.float32, device=device
@@ -70,6 +75,20 @@ def relaxed_spatial_profile_torque(
         )
         torque[start:stop] = values.detach().cpu().numpy()
         force_residual[start:stop] = residual.detach().cpu().numpy()
+        if progress_batches > 0 and (
+            batch_index == 1
+            or batch_index == total_batches
+            or batch_index % progress_batches == 0
+        ):
+            elapsed = time.perf_counter() - started
+            rate = batch_index / max(elapsed, 1e-9)
+            eta = (total_batches - batch_index) / max(rate, 1e-9)
+            print(
+                f"{progress_label}: {batch_index}/{total_batches} batches "
+                f"({100.0 * batch_index / total_batches:5.1f}%) | "
+                f"elapsed {elapsed / 60.0:6.1f} min | ETA {eta / 60.0:6.1f} min",
+                flush=True,
+            )
     shape = dataset["target"].shape
     return torque.reshape(shape), force_residual.reshape(shape)
 
@@ -86,13 +105,13 @@ def main():
     parser.add_argument("--min-stiffness", type=float, default=0.0)
     parser.add_argument("--relaxation-steps", type=int, default=300)
     parser.add_argument("--mechanics-batch-size", type=int, default=1024)
-    parser.add_argument("--motoring-efficiency", type=float, default=DEFAULT_MOTORING_EFFICIENCY)
-    parser.add_argument("--regen-efficiency", type=float, default=DEFAULT_REGEN_EFFICIENCY)
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--seed", type=int, default=101)
     parser.add_argument("--progress-interval", type=int, default=1000)
     parser.add_argument("--output-name", default=None)
     args = parser.parse_args()
+    args.motoring_efficiency = 1.0
+    args.regen_efficiency = 0.0
     if args.device == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but unavailable")
     device = torch.device(args.device)
@@ -131,8 +150,8 @@ def main():
         profiles, dataset, torque, stiffness,
         args.motoring_efficiency, args.regen_efficiency
     )
-    baseline = sum(row["baseline_energy_burden_j"] for row in rows)
-    assisted = sum(row["assisted_energy_burden_j"] for row in rows)
+    baseline = sum(row["baseline_motor_work_j"] for row in rows)
+    assisted = sum(row["assisted_motor_work_j"] for row in rows)
     offload = 100.0 * (baseline - assisted) / baseline
     name = args.output_name or f"{args.topology.stem}_profile_passive_3d"
     print(f"3D topology: {args.topology.name}")

@@ -7,7 +7,7 @@ from physics import Spring
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TOPOLOGY_PATH = PROJECT_ROOT / "topologies" / "adaptive_stiffness" / "baseline_model.json"
+DEFAULT_TOPOLOGY_PATH = PROJECT_ROOT / "topologies" / "profile_conditioned_passive" / "baseline_model.json"
 
 
 def _load_topology_data(path):

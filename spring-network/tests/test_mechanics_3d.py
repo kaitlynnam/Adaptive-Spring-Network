@@ -24,25 +24,25 @@ class SpatialMechanicsTests(unittest.TestCase):
             PROJECT_ROOT
             / "topologies"
             / "spatial"
-            / "internal_fan_3d_30_spring_optimized.json"
+            / "hybrid_internal_skin_3d_60_spring.json"
         )
 
     def test_topology_is_genuinely_spatial_and_connected(self):
         topology = load_spatial_topology(self.path)
         self.assertEqual(topology["local_positions"].shape[1], 3)
-        self.assertEqual(len(topology["spring_a"]), 30)
-        self.assertEqual(len(topology["internal_indices"]), 6)
+        self.assertEqual(len(topology["spring_a"]), 60)
+        self.assertEqual(len(topology["internal_indices"]), 12)
         self.assertGreater(
             float(torch.max(topology["local_positions"][:, 2]) - torch.min(topology["local_positions"][:, 2])),
             0.4,
         )
         used = set(topology["spring_a"].tolist()) | set(topology["spring_b"].tolist())
-        fixed = {
+        stationary_skin = {
             index
             for index, kind in enumerate(topology["node_types"])
-            if kind == "fixed"
+            if kind == "skin1"
         }
-        self.assertTrue(fixed.issubset(used))
+        self.assertTrue(stationary_skin.issubset(used))
 
     def test_relaxation_reduces_internal_force_residual(self):
         topology = load_spatial_topology(self.path)

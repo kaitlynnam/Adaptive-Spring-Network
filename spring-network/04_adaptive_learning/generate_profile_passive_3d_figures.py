@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 from adaptive_model import ANGLE_DEGREES
 from benchmark_profile_passive_3d import relaxed_spatial_profile_torque, spatial_initial_basis
 from mechanics_3d import load_spatial_topology
-from profile_generator import PROFILE_FAMILIES, generate_classified_profile_parameters
+from profile_generator import generate_profile_parameters
 from train_profile_conditioned_passive import (
     build_profile_dataset,
     predict_profile_stiffness,
@@ -31,13 +31,11 @@ def load_checkpoint(path):
 
 
 def representative_indices(profiles, rows):
-    """Choose low/median offload examples from each roughness family."""
-    selected = []
-    for family in PROFILE_FAMILIES:
-        indices = [i for i, profile in enumerate(profiles) if profile["family"] == family]
-        ordered = sorted(indices, key=lambda i: rows[i]["offload_pct"])
-        selected.extend((ordered[len(ordered) // 4], ordered[len(ordered) // 2]))
-    return selected
+    """Choose six profiles spanning the held-out offload distribution."""
+    del profiles
+    ordered = np.argsort([row["offload_pct"] for row in rows])
+    locations = np.linspace(0, len(ordered) - 1, 6).round().astype(int)
+    return ordered[locations].tolist()
 
 
 def plot_torque_angle(path, profiles, dataset, torque, rows, indices):
@@ -97,10 +95,7 @@ def plot_stiffness(path, profiles, stiffness, rows, indices):
     axis.set_ylabel("held-out profile")
     axis.set_yticks(
         np.arange(len(indices)),
-        [
-            f"{profiles[i]['family']} ({rows[i]['offload_pct']:.1f}%)"
-            for i in indices
-        ],
+        [profiles[i]["name"] for i in indices],
     )
     axis.set_title("One fixed stiffness vector per torque–angle profile")
     colorbar = figure.colorbar(image, ax=axis)
@@ -113,8 +108,8 @@ def plot_stiffness(path, profiles, stiffness, rows, indices):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("checkpoint", type=Path)
-    parser.add_argument("--profiles-per-family", type=int, default=2000)
-    parser.add_argument("--test-profiles-per-family", type=int, default=400)
+    parser.add_argument("--training-profiles", type=int, default=6000)
+    parser.add_argument("--test-profiles", type=int, default=1200)
     parser.add_argument("--samples", type=int, default=160)
     parser.add_argument("--duration", type=float, default=5.0)
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
@@ -138,13 +133,26 @@ def main():
     )
     relaxation_steps = int(saved["relaxation_steps"])
     seed = int(saved["seed"])
+    motion_mode = str(saved["motion_mode"]) if "motion_mode" in saved else "triangular"
+    fixed_frequency_hz = (
+        float(saved["fixed_frequency_hz"])
+        if "fixed_frequency_hz" in saved
+        else 0.2
+    )
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, relaxation_steps)
     rng = np.random.default_rng(seed)
-    generate_classified_profile_parameters(rng, args.profiles_per_family)
-    profiles = generate_classified_profile_parameters(rng, args.test_profiles_per_family)
+    generate_profile_parameters(rng, args.training_profiles)
+    profiles = generate_profile_parameters(rng, args.test_profiles)
     dataset = build_profile_dataset(
-        profiles, angles, basis, args.duration, args.samples, seed + 30_000
+        profiles,
+        angles,
+        basis,
+        args.duration,
+        args.samples,
+        seed + 30_000,
+        motion_mode=motion_mode,
+        fixed_frequency_hz=fixed_frequency_hz,
     )
     stiffness = predict_profile_stiffness(
         model, dataset, float(saved["min_k"]), 1.0, unbounded_stiffness=True

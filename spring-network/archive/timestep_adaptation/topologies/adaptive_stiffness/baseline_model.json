@@ -1,0 +1,35 @@
+{
+  "name": "baseline_model",
+  "description": "A small hand-authored baseline spring web with reproducible untuned random initial stiffnesses (log-uniform 5-150 N/m, seed 101).",
+  "rest_angle_degrees": 0.0,
+  "nodes": [
+    {"name": "anchor_upper_left", "type": "fixed", "position": [-1.25, 1.05]},
+    {"name": "anchor_lower_left", "type": "fixed", "position": [-1.15, -0.90]},
+    {"name": "anchor_upper_right", "type": "fixed", "position": [1.20, 1.20]},
+    {"name": "anchor_lower_right", "type": "fixed", "position": [1.35, -0.80]},
+    {"name": "limb1_inner", "type": "limb1", "position": [-0.45, 0.18]},
+    {"name": "limb1_outer", "type": "limb1", "position": [-1.05, -0.12]},
+    {"name": "limb2_inner", "type": "limb2", "position": [0.45, 0.22]},
+    {"name": "limb2_outer", "type": "limb2", "position": [1.05, -0.16]},
+    {"name": "internal_top", "type": "internal", "position": [-0.05, 0.85]},
+    {"name": "internal_bottom", "type": "internal", "position": [0.10, -0.72]}
+  ],
+  "springs": [
+    {"node_a": "anchor_upper_left", "node_b": "internal_top", "stiffness_k": 123.789},
+    {"node_a": "anchor_upper_right", "node_b": "internal_top", "stiffness_k": 16.978},
+    {"node_a": "anchor_lower_left", "node_b": "internal_bottom", "stiffness_k": 72.148},
+    {"node_a": "anchor_lower_right", "node_b": "internal_bottom", "stiffness_k": 37.356},
+    {"node_a": "internal_top", "node_b": "limb1_inner", "stiffness_k": 13.606},
+    {"node_a": "internal_top", "node_b": "limb2_inner", "stiffness_k": 115.331},
+    {"node_a": "internal_bottom", "node_b": "limb1_inner", "stiffness_k": 96.179},
+    {"node_a": "internal_bottom", "node_b": "limb2_inner", "stiffness_k": 17.252},
+    {"node_a": "limb1_inner", "node_b": "limb2_inner", "stiffness_k": 136.921},
+    {"node_a": "limb1_outer", "node_b": "limb2_outer", "stiffness_k": 10.730},
+    {"node_a": "limb1_outer", "node_b": "internal_top", "stiffness_k": 77.408},
+    {"node_a": "limb2_outer", "node_b": "internal_top", "stiffness_k": 50.668},
+    {"node_a": "limb1_outer", "node_b": "internal_bottom", "stiffness_k": 24.819},
+    {"node_a": "limb2_outer", "node_b": "internal_bottom", "stiffness_k": 5.552},
+    {"node_a": "anchor_upper_left", "node_b": "limb1_outer", "stiffness_k": 104.881},
+    {"node_a": "anchor_lower_right", "node_b": "limb2_outer", "stiffness_k": 35.180}
+  ]
+}

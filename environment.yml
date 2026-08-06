@@ -1,0 +1,15 @@
+name: adaptive-spring-network
+channels:
+  - defaults
+dependencies:
+  - python=3.11.15
+  - numpy=1.26.4
+  - scipy=1.15.3
+  - matplotlib=3.10.3
+  - plotly=6.3.0
+  - pyyaml=6.0.2
+  - pip
+  - pip:
+      - pytest==9.1.1
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.7.0+cu128

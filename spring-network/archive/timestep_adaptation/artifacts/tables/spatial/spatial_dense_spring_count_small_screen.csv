@@ -1,0 +1,5 @@
+springs,topology,train_profiles,heldout_profiles,iterations,refreshes,heldout_rmse_nm,heldout_median_rmse_nm,heldout_offload_pct,mean_equilibrium_residual_n,max_equilibrium_residual_n,feasibility_passed
+36,internal_fan_3d_36_spring_dense,1500,300,1000,1,16.2431,15.1487,77.726,0.02508,1.31202,true
+42,internal_fan_3d_42_spring_denser,1500,300,1000,1,16.0151,14.7305,78.122,0.02591,2.52405,true
+48,internal_fan_3d_48_spring_densest,1500,300,1000,1,15.8496,14.5306,79.422,0.02619,0.96600,true
+54,internal_fan_3d_54_spring,1500,300,1000,1,15.9475,14.6566,78.623,0.02909,1.26550,true

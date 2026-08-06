@@ -1,0 +1,35 @@
+{
+  "model": "C:\\Users\\kn109\\Code\\Adaptive-Spring-Network\\spring-network\\models\\constant_internal_fan_fl_knee_slope_20000.npz",
+  "terrain_family": "hf_pyramid_slope",
+  "joint": "FL_calf_joint",
+  "train_environments": 40,
+  "validation_environments": 5,
+  "test_environments": 5,
+  "best_iteration": 19223,
+  "stiffness_min_n_per_m": 1.000023603439331,
+  "stiffness_max_n_per_m": 126.609130859375,
+  "train": {
+    "baseline_torque_rmse_nm": 7.669989585876465,
+    "residual_torque_rmse_nm": 7.154676379066232,
+    "rms_torque_offload_pct": 6.718564621771217,
+    "baseline_energy_burden_step_sum": 2750.686279296875,
+    "assisted_energy_burden_step_sum": 2678.3633690369325,
+    "energy_offload_pct": 2.6292678595986447
+  },
+  "validation": {
+    "baseline_torque_rmse_nm": 8.534073829650879,
+    "residual_torque_rmse_nm": 7.31387943277366,
+    "rms_torque_offload_pct": 14.297912359719254,
+    "baseline_energy_burden_step_sum": 3541.75146484375,
+    "assisted_energy_burden_step_sum": 2752.5394353495135,
+    "energy_offload_pct": 22.28310024935795
+  },
+  "test": {
+    "baseline_torque_rmse_nm": 7.412648677825928,
+    "residual_torque_rmse_nm": 7.075568640435253,
+    "rms_torque_offload_pct": 4.54736292034196,
+    "baseline_energy_burden_step_sum": 2411.355712890625,
+    "assisted_energy_burden_step_sum": 2388.3652252473926,
+    "energy_offload_pct": 0.9534258060861731
+  }
+}

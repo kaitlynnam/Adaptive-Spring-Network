@@ -3,8 +3,8 @@
 import numpy as np
 
 
-DEFAULT_MOTORING_EFFICIENCY = 0.85
-DEFAULT_REGEN_EFFICIENCY = 0.60
+DEFAULT_MOTORING_EFFICIENCY = 1.0
+DEFAULT_REGEN_EFFICIENCY = 0.0
 
 
 def validate_efficiencies(motoring_efficiency, regen_efficiency):

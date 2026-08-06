@@ -1,0 +1,14 @@
+Spring law,"Relaxation
+steps","Mean RMSE
+[N·m]","Mean offload
+[%]","Mean force
+residual [N]","Torque RMSE vs.
+deepest [N·m]"
+Linear,80,38.00,33.93,1.712,1.367
+Linear,160,38.03,33.97,0.184,0.208
+Linear,300,37.99,34.07,0.105,0.090
+Linear,500,37.96,34.14,0.050,0.000
+Cubic,80,38.01,34.32,1.687,1.306
+Cubic,160,38.01,34.44,0.189,0.230
+Cubic,300,37.95,34.57,0.095,0.081
+Cubic,500,37.92,34.63,0.045,0.000

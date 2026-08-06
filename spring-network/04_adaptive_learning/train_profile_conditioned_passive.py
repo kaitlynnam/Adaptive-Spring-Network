@@ -45,8 +45,8 @@ from profile_generator import (  # noqa: E402
     profile_descriptor,
 )
 from topology_loader import load_network  # noqa: E402
-from train_adaptive_dataset import (  # noqa: E402
-    TRAINING_NETWORK_PRESETS,
+from passive_mechanics import (  # noqa: E402
+    PASSIVE_NETWORK_PRESETS,
     differentiable_relaxed_stiffness_torque,
     generate_motion_trajectory,
     interpolate_basis,
@@ -55,6 +55,8 @@ from train_adaptive_dataset import (  # noqa: E402
     torch_torque_components_batch,
     torch_torque_from_dataset,
 )
+
+TRAINING_NETWORK_PRESETS = PASSIVE_NETWORK_PRESETS
 
 
 def build_profile_dataset(
@@ -221,12 +223,12 @@ def train_profile_model(
                 residual * theta_dot, motoring_efficiency, regen_efficiency
             )
         )
-        energy_ratio = assisted_power / baseline_power
+        assisted_fraction = assisted_power / baseline_power
         peak = torch.mean(torch.logsumexp(torch.abs(residual) / 10.0, dim=1) * 10.0)
         stiffness_delta = (stiffness - base_k) / torch.clamp(base_k, min=1.0)
         loss = (
             mse
-            + energy_weight * mse.detach() * energy_ratio
+            + energy_weight * mse.detach() * assisted_fraction
             + peak_weight * peak**2
             + stiffness_weight * torch.mean(stiffness_delta**2)
         )
@@ -234,7 +236,8 @@ def train_profile_model(
         optimizer.step()
         loss_value = float(loss.detach().cpu())
         rmse = float(torch.sqrt(mse).detach().cpu())
-        history.append((iteration, rmse, loss_value, float(energy_ratio.detach().cpu())))
+        offload_pct = 100.0 * (1.0 - float(assisted_fraction.detach().cpu()))
+        history.append((iteration, rmse, loss_value, offload_pct))
         if loss_value < best_loss:
             best_loss = loss_value
             best_model = {
@@ -246,7 +249,7 @@ def train_profile_model(
         ):
             print(
                 f"iteration {iteration:5d} | residual RMSE {rmse:8.3f} N*m | "
-                f"energy ratio {history[-1][3]:7.3f} | loss {loss_value:10.3f}"
+                f"estimated offload {history[-1][3]:7.2f}% | loss {loss_value:10.3f}"
             )
     return best_model, history
 
@@ -389,8 +392,8 @@ def optimize_profile_stiffness_oracle(
             ),
             dim=1,
         )
-        energy_ratio = assisted_power / baseline_power
-        loss = torch.mean(profile_mse + energy_weight * profile_mse.detach() * energy_ratio)
+        assisted_fraction = assisted_power / baseline_power
+        loss = torch.mean(profile_mse + energy_weight * profile_mse.detach() * assisted_fraction)
         loss.backward()
         optimizer.step()
         loss_value = float(loss.detach().cpu())
@@ -403,7 +406,8 @@ def optimize_profile_stiffness_oracle(
             print(
                 f"oracle iteration {iteration:5d} | residual RMSE "
                 f"{float(torch.sqrt(torch.mean(profile_mse)).detach().cpu()):8.3f} N*m | "
-                f"mean energy ratio {float(torch.mean(energy_ratio).detach().cpu()):7.3f}"
+                f"mean estimated offload "
+                f"{100.0 * (1.0 - float(torch.mean(assisted_fraction).detach().cpu())):7.2f}%"
             )
     return best_stiffness
 
@@ -560,13 +564,19 @@ def refresh_profile_torque_basis(
     return refreshed
 
 
-def profile_energy_burden(t, torque, theta_dot, motoring_efficiency, regen_efficiency):
+def profile_motor_work(t, torque, theta_dot, motoring_efficiency=1.0, regen_efficiency=0.0):
+    """Integrate ideal absolute motor mechanical power over a profile."""
     accounting = numpy_power_accounting(
         np.asarray(torque) * np.asarray(theta_dot),
         motoring_efficiency,
         regen_efficiency,
     )
-    return float(np.trapezoid(accounting["energy_burden_power"], t))
+    trapezoid = getattr(np, "trapezoid", np.trapz)
+    return float(trapezoid(accounting["energy_burden_power"], t))
+
+
+# Backward-compatible name retained for archived callers.
+profile_energy_burden = profile_motor_work
 
 
 def summary_rows(
@@ -580,14 +590,14 @@ def summary_rows(
     rows = []
     for index, profile in enumerate(profiles):
         residual = dataset["target"][index] - torque[index]
-        baseline_burden = profile_energy_burden(
+        baseline_burden = profile_motor_work(
             dataset["t"][index],
             dataset["target"][index],
             dataset["theta_dot"][index],
             motoring_efficiency,
             regen_efficiency,
         )
-        assisted_burden = profile_energy_burden(
+        assisted_burden = profile_motor_work(
             dataset["t"][index],
             residual,
             dataset["theta_dot"][index],
@@ -607,8 +617,8 @@ def summary_rows(
                 "peak_abs_residual_nm": float(np.max(np.abs(residual))),
                 "mean_abs_residual_nm": float(np.mean(np.abs(residual))),
                 "offload_pct": offload,
-                "baseline_energy_burden_j": baseline_burden,
-                "assisted_energy_burden_j": assisted_burden,
+                "baseline_motor_work_j": baseline_burden,
+                "assisted_motor_work_j": assisted_burden,
                 "mean_stiffness_n_per_m": float(np.mean(profile_stiffness[index])),
             }
         )
@@ -660,8 +670,6 @@ def main():
     parser.add_argument("--stiffness-weight", type=float, default=0.0)
     parser.add_argument("--energy-weight", type=float, default=0.35)
     parser.add_argument("--peak-weight", type=float, default=0.0)
-    parser.add_argument("--motoring-efficiency", type=float, default=DEFAULT_MOTORING_EFFICIENCY)
-    parser.add_argument("--regen-efficiency", type=float, default=DEFAULT_REGEN_EFFICIENCY)
     parser.add_argument("--device", choices=["auto", "cuda", "cpu"], default="auto")
     parser.add_argument("--mechanics-batch-size", type=int, default=8192)
     parser.add_argument("--relaxation-steps", type=int, default=80)
@@ -682,6 +690,8 @@ def main():
     parser.add_argument("--exact-finetune-samples", type=int, default=24)
     parser.add_argument("--exact-finetune-relaxation-steps", type=int, default=20)
     args = parser.parse_args()
+    args.motoring_efficiency = 1.0
+    args.regen_efficiency = 0.0
     validate_efficiencies(args.motoring_efficiency, args.regen_efficiency)
     if args.fixed_frequency_hz is not None and args.fixed_frequency_hz <= 0:
         parser.error("--fixed-frequency-hz must be positive")
@@ -801,10 +811,10 @@ def main():
     mean_rmse = float(np.mean([row["residual_rmse_nm"] for row in rows]))
     mean_offload = float(np.mean([row["offload_pct"] for row in rows]))
     aggregate_baseline = float(
-        np.sum([row["baseline_energy_burden_j"] for row in rows])
+        np.sum([row["baseline_motor_work_j"] for row in rows])
     )
     aggregate_assisted = float(
-        np.sum([row["assisted_energy_burden_j"] for row in rows])
+        np.sum([row["assisted_motor_work_j"] for row in rows])
     )
     aggregate_offload = 100.0 * (
         aggregate_baseline - aggregate_assisted
@@ -843,8 +853,8 @@ def main():
     write_rows(
         table_dir / f"{args.output_name}_training_history.csv",
         [
-            {"iteration": i, "residual_rmse_nm": r, "loss": loss, "energy_ratio": energy}
-            for i, r, loss, energy in history
+            {"iteration": i, "residual_rmse_nm": r, "loss": loss, "offload_pct": offload}
+            for i, r, loss, offload in history
         ],
     )
     write_stiffness_rows(

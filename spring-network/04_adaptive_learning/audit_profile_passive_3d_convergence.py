@@ -16,7 +16,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 from adaptive_model import ANGLE_DEGREES
 from benchmark_profile_passive_3d import relaxed_spatial_profile_torque, spatial_initial_basis
 from mechanics_3d import load_spatial_topology, torque_and_residual
-from profile_generator import generate_classified_profile_parameters
+from profile_generator import generate_profile_parameters
 from train_profile_conditioned_passive import (
     build_profile_dataset,
     predict_profile_stiffness,
@@ -59,8 +59,8 @@ def warm_started_torque(
 
 def aggregate(name, profiles, dataset, torque, stiffness, residual, seconds, iterations=None):
     rows = summary_rows(profiles, dataset, torque, stiffness)
-    baseline = sum(row["baseline_energy_burden_j"] for row in rows)
-    assisted = sum(row["assisted_energy_burden_j"] for row in rows)
+    baseline = sum(row["baseline_motor_work_j"] for row in rows)
+    assisted = sum(row["assisted_motor_work_j"] for row in rows)
     return {
         "solver": name,
         "aggregate_offload_pct": 100.0 * (baseline - assisted) / baseline,
@@ -76,9 +76,9 @@ def aggregate(name, profiles, dataset, torque, stiffness, residual, seconds, ite
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("checkpoint", type=Path)
-    parser.add_argument("--profiles-per-family", type=int, default=2000)
-    parser.add_argument("--test-profiles-per-family", type=int, default=400)
-    parser.add_argument("--audit-profiles-per-family", type=int, default=30)
+    parser.add_argument("--training-profiles", type=int, default=6000)
+    parser.add_argument("--test-profiles", type=int, default=1200)
+    parser.add_argument("--audit-profiles", type=int, default=90)
     parser.add_argument("--samples", type=int, default=160)
     parser.add_argument("--duration", type=float, default=5.0)
     parser.add_argument("--force-tolerance", type=float, default=1e-3)
@@ -98,15 +98,9 @@ def main():
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, 300)
     rng = np.random.default_rng(seed)
-    generate_classified_profile_parameters(rng, args.profiles_per_family)
-    all_test = generate_classified_profile_parameters(rng, args.test_profiles_per_family)
-    selected = []
-    for family in sorted({profile["family"] for profile in all_test}):
-        selected.extend(
-            [profile for profile in all_test if profile["family"] == family][
-                : args.audit_profiles_per_family
-            ]
-        )
+    generate_profile_parameters(rng, args.training_profiles)
+    all_test = generate_profile_parameters(rng, args.test_profiles)
+    selected = all_test[:args.audit_profiles]
     dataset = build_profile_dataset(
         selected, angles, basis, args.duration, args.samples, seed + 30_000
     )

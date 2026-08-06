@@ -1,0 +1,4 @@
+springs,topology,heldout_profiles,mean_rmse_nm,median_rmse_nm,mean_offload_pct,mean_equilibrium_residual_n,max_equilibrium_residual_n,feasibility_passed
+24,internal_fan_3d_24_spring_sparse,600,34.0722,32.3361,44.661,0.05886,2.52796,true
+30,internal_fan_3d_30_spring_optimized,600,19.5400,18.3468,74.032,0.04407,1.99728,true
+36,internal_fan_3d_36_spring_dense,600,16.4356,15.0612,79.440,0.02545,1.53300,true

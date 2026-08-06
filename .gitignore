@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 spring-network/tables/**/*_test_torque_trace.csv
+seed-logs/

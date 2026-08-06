@@ -1,63 +1,76 @@
-# Spring Network Research Code
+# Adaptive Spring Network Research Code
+
+The active project learns to update spring stiffness once per motion period.
+The first period uses the 3D topology's initial stiffnesses with no neural
+network input. At its end, the complete period of angle, velocity,
+acceleration, target torque, spring torque, and residual motor torque is fed to
+the MLP. Its 60 predicted stiffnesses are held fixed throughout the next
+period. Training aligns every completed-period input with loss on the following
+period, preserving strict causality.
 
 ## Active pipeline
 
-The active experiment is the causal adaptive-stiffness pipeline:
+- `01_core_model/` — 2D and genuine-3D equilibrium mechanics.
+- `04_adaptive_learning/train_period_adaptive_3d.py` — active causal trainer.
+- `topologies/spatial/` — active 60-spring topology.
+- `models/period_adaptive_3d/` — active checkpoints.
 
-- `01_core_model/` — spring, node, geometry, and equilibrium mechanics.
-- `02_baseline_profiles/` — topology and torque-profile visualizations.
-- `04_adaptive_learning/` — causal MLP training and energy accounting.
-  It contains both the active stiffness trainer and active preload trainer.
-- `05_trajectory_evaluation/` — retained trajectory comparison utilities.
-- `topologies/adaptive_stiffness/` — active baseline and 20-spring fan topologies.
-- `models/adaptive_stiffness/` — current adaptive-stiffness checkpoints.
-- `tables/adaptive_stiffness/` — compact train, test, and mechanics metrics.
-- `plots/adaptive_stiffness/` — current figures.
-
-The default trainer does not expose the complete torque-angle profile to the
-MLP and does not write the very large per-timestep torque trace.
-
-## Current fixed-motion experiment
+Run from the repository root with:
 
 ```powershell
-$env:KMP_DUPLICATE_LIB_OK="TRUE"
-
-python spring-network\04_adaptive_learning\train_adaptive_dataset.py `
-  --network fan `
-  --motion-mode triangular `
-  --fixed-frequency-hz 1.0 `
-  --profiles-per-family 2000 `
-  --test-profiles-per-family 400 `
-  --duration 5 `
-  --samples 160 `
-  --window-size 10 `
-  --iterations 5000 `
-  --optimizer adam `
-  --learning-rate 0.01 `
-  --hidden-dim 256 `
-  --min-stiffness 1 `
-  --max-stiffness 800 `
-  --energy-weight 0.35 `
-  --stiffness-change-weight 0 `
-  --device cuda `
-  --mechanics-backend torch `
-  --mechanics-batch-size 8192 `
-  --relaxation-steps 80 `
-  --output-name adaptive_20spring_fixed_motion
+python spring-network/04_adaptive_learning/train_period_adaptive_3d.py
 ```
 
-Add `--write-torque-trace` only when the full per-timestep CSV is genuinely
-needed; a large run can produce a trace tens or hundreds of megabytes in size.
+Training learns a complete-period-data-to-stiffness mapping. By default it trains this mapping in a
+six-period closed loop: half the trajectories start at default stiffness, half
+start randomized, and every later period uses the NN's own preceding output.
+Exact mechanics refreshes can rebuild the local torque basis between phases.
+The first-period default and one-period delay are enforced by the deployment
+wrapper:
 
-## Organized research artifacts
+```powershell
+python spring-network/04_adaptive_learning/deploy_period_adaptive_3d.py
+```
 
-Models, plots, tables, and topologies are grouped consistently:
+Continue a checkpoint on a larger dataset with, for example:
 
-- `adaptive_stiffness/` — current causal stiffness-control work.
-- `preload/` — preserved preload studies.
-- `isaaclab/` — preserved IsaacLab rollouts and exported policies.
-- `legacy/` — earlier models, comparisons, and exploratory results.
+```powershell
+python spring-network/04_adaptive_learning/train_period_adaptive_3d.py `
+  --resume-checkpoint spring-network/models/period_adaptive_3d/period_adaptive_3d_60spring.npz `
+  --training-profiles 12000 --iterations 5000 --learning-rate 0.0003 `
+  --output-name period_adaptive_3d_60spring_extended
+```
 
-`data/isaaclab/` contains the archived rollout datasets. Historical source is
-under `archive/`; it is retained for reproducibility but is not part of the
-active workflow.
+Every completed training run performs held-out relaxed-3D evaluation and writes:
+
+- `plots/period_adaptive_3d/*_training_convergence.png`
+- `plots/period_adaptive_3d/*_torque_time.png`
+- `plots/period_adaptive_3d/*_torque_angle.png`
+- `plots/period_adaptive_3d/*_stiffness_schedule.png`
+- `tables/period_adaptive_3d/*_summary.csv`
+
+Create an interactive standalone HTML deployment simulation with:
+
+```powershell
+python 04_adaptive_learning/generate_period_adaptive_simulation.py `
+  --checkpoint models/period_adaptive_3d/period_adaptive_3d_60spring_closed_loop_long.npz
+```
+
+Custom input CSV files require `time_s,target_torque_nm`; `angle_deg` is
+optional. Pass one with `--input-csv path/to/trajectory.csv`. The viewer
+animates the relaxed 3D spring network, torque traces, period cursor, and the
+60-value stiffness vector as updates occur at period boundaries.
+
+The profile-conditioned passive experiment remains available for comparison.
+The former timestep-adaptive, preload, trajectory-evaluation, and paper
+pipeline is preserved under `archive/timestep_adaptation/`.
+
+## Reproducible CUDA environment
+
+The tested Windows environment is pinned in `environment.yml`. Create it with:
+
+```powershell
+conda env create -f environment.yml
+```
+
+Run tests with `python -m pytest spring-network/tests -q`.
