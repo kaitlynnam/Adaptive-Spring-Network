@@ -1,0 +1,357 @@
+Python: C:\Users\kn109\anaconda3\envs\adaptive-spring-passive\python.exe
+CUDA device: NVIDIA GeForce RTX 3060 Ti
+Topology: C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\topologies\spatial\internal_fan_3d_60_spring.json
+iteration     1 | residual RMSE  115.722 N*m | estimated offload -102.48% | loss 826846.375
+iteration   500 | residual RMSE   35.096 N*m | estimated offload   40.68% | loss  23151.020
+iteration  1000 | residual RMSE   30.373 N*m | estimated offload   50.87% | loss  14520.530
+iteration  1500 | residual RMSE   28.257 N*m | estimated offload   55.90% | loss  11361.801
+iteration  2000 | residual RMSE   27.115 N*m | estimated offload   58.98% | loss   9781.979
+iteration  2500 | residual RMSE   26.460 N*m | estimated offload   60.97% | loss   8897.076
+iteration  3000 | residual RMSE   26.026 N*m | estimated offload   62.39% | loss   8320.787
+iteration  3500 | residual RMSE   25.713 N*m | estimated offload   63.40% | loss   7919.556
+iteration  4000 | residual RMSE   25.462 N*m | estimated offload   64.18% | loss   7614.575
+iteration  4500 | residual RMSE   25.233 N*m | estimated offload   64.83% | loss   7353.774
+iteration  5000 | residual RMSE   25.001 N*m | estimated offload   65.42% | loss   7110.352
+iteration  5500 | residual RMSE   24.780 N*m | estimated offload   65.94% | loss   6888.885
+iteration  6000 | residual RMSE   24.568 N*m | estimated offload   66.41% | loss   6686.222
+iteration  6500 | residual RMSE   24.384 N*m | estimated offload   66.83% | loss   6511.411
+iteration  7000 | residual RMSE   24.230 N*m | estimated offload   67.21% | loss   6362.926
+iteration  7500 | residual RMSE   24.092 N*m | estimated offload   67.53% | loss   6233.955
+iteration  8000 | residual RMSE   23.975 N*m | estimated offload   67.83% | loss   6122.758
+iteration  8500 | residual RMSE   23.874 N*m | estimated offload   68.10% | loss   6025.249
+iteration  9000 | residual RMSE   23.778 N*m | estimated offload   68.34% | loss   5935.817
+iteration  9500 | residual RMSE   23.719 N*m | estimated offload   68.56% | loss   5869.605
+iteration 10000 | residual RMSE   23.654 N*m | estimated offload   68.74% | loss   5807.154
+Re-relaxing 3D mechanics at MLP predictions (1/2) over 600 profiles x 160 samples...
+Mechanics correction 1/2: 1/188 batches (  0.5%) | elapsed    0.0 min | ETA    2.3 min
+Mechanics correction 1/2: 10/188 batches (  5.3%) | elapsed    0.1 min | ETA    2.1 min
+Mechanics correction 1/2: 20/188 batches ( 10.6%) | elapsed    0.2 min | ETA    2.0 min
+Mechanics correction 1/2: 30/188 batches ( 16.0%) | elapsed    0.4 min | ETA    1.9 min
+Mechanics correction 1/2: 40/188 batches ( 21.3%) | elapsed    0.5 min | ETA    1.8 min
+Mechanics correction 1/2: 50/188 batches ( 26.6%) | elapsed    0.6 min | ETA    1.7 min
+Mechanics correction 1/2: 60/188 batches ( 31.9%) | elapsed    0.7 min | ETA    1.5 min
+Mechanics correction 1/2: 70/188 batches ( 37.2%) | elapsed    0.8 min | ETA    1.4 min
+Mechanics correction 1/2: 80/188 batches ( 42.6%) | elapsed    1.0 min | ETA    1.3 min
+Mechanics correction 1/2: 90/188 batches ( 47.9%) | elapsed    1.1 min | ETA    1.2 min
+Mechanics correction 1/2: 100/188 batches ( 53.2%) | elapsed    1.2 min | ETA    1.1 min
+Mechanics correction 1/2: 110/188 batches ( 58.5%) | elapsed    1.3 min | ETA    0.9 min
+Mechanics correction 1/2: 120/188 batches ( 63.8%) | elapsed    1.5 min | ETA    0.8 min
+Mechanics correction 1/2: 130/188 batches ( 69.1%) | elapsed    1.6 min | ETA    0.7 min
+Mechanics correction 1/2: 140/188 batches ( 74.5%) | elapsed    1.7 min | ETA    0.6 min
+Mechanics correction 1/2: 150/188 batches ( 79.8%) | elapsed    1.8 min | ETA    0.5 min
+Mechanics correction 1/2: 160/188 batches ( 85.1%) | elapsed    1.9 min | ETA    0.3 min
+Mechanics correction 1/2: 170/188 batches ( 90.4%) | elapsed    2.1 min | ETA    0.2 min
+Mechanics correction 1/2: 180/188 batches ( 95.7%) | elapsed    2.2 min | ETA    0.1 min
+Mechanics correction 1/2: 188/188 batches (100.0%) | elapsed    2.3 min | ETA    0.0 min
+iteration     1 | residual RMSE   24.810 N*m | estimated offload   65.92% | loss   6908.635
+iteration   500 | residual RMSE   23.817 N*m | estimated offload   69.16% | loss   5815.506
+iteration  1000 | residual RMSE   23.800 N*m | estimated offload   69.42% | loss   5762.924
+iteration  1500 | residual RMSE   23.778 N*m | estimated offload   69.60% | loss   5721.770
+Re-relaxing 3D mechanics at MLP predictions (2/2) over 600 profiles x 160 samples...
+Mechanics correction 2/2: 1/188 batches (  0.5%) | elapsed    0.0 min | ETA    1.9 min
+Mechanics correction 2/2: 10/188 batches (  5.3%) | elapsed    0.1 min | ETA    1.9 min
+Mechanics correction 2/2: 20/188 batches ( 10.6%) | elapsed    0.2 min | ETA    1.9 min
+Mechanics correction 2/2: 30/188 batches ( 16.0%) | elapsed    0.3 min | ETA    1.8 min
+Mechanics correction 2/2: 40/188 batches ( 21.3%) | elapsed    0.5 min | ETA    1.7 min
+Mechanics correction 2/2: 50/188 batches ( 26.6%) | elapsed    0.6 min | ETA    1.6 min
+Mechanics correction 2/2: 60/188 batches ( 31.9%) | elapsed    0.7 min | ETA    1.5 min
+Mechanics correction 2/2: 70/188 batches ( 37.2%) | elapsed    0.8 min | ETA    1.4 min
+Mechanics correction 2/2: 80/188 batches ( 42.6%) | elapsed    0.9 min | ETA    1.3 min
+Mechanics correction 2/2: 90/188 batches ( 47.9%) | elapsed    1.0 min | ETA    1.1 min
+Mechanics correction 2/2: 100/188 batches ( 53.2%) | elapsed    1.2 min | ETA    1.0 min
+Mechanics correction 2/2: 110/188 batches ( 58.5%) | elapsed    1.3 min | ETA    0.9 min
+Mechanics correction 2/2: 120/188 batches ( 63.8%) | elapsed    1.4 min | ETA    0.8 min
+Mechanics correction 2/2: 130/188 batches ( 69.1%) | elapsed    1.5 min | ETA    0.7 min
+Mechanics correction 2/2: 140/188 batches ( 74.5%) | elapsed    1.6 min | ETA    0.6 min
+Mechanics correction 2/2: 150/188 batches ( 79.8%) | elapsed    1.8 min | ETA    0.4 min
+Mechanics correction 2/2: 160/188 batches ( 85.1%) | elapsed    1.9 min | ETA    0.3 min
+Mechanics correction 2/2: 170/188 batches ( 90.4%) | elapsed    2.0 min | ETA    0.2 min
+Mechanics correction 2/2: 180/188 batches ( 95.7%) | elapsed    2.1 min | ETA    0.1 min
+Mechanics correction 2/2: 188/188 batches (100.0%) | elapsed    2.2 min | ETA    0.0 min
+iteration     1 | residual RMSE   24.386 N*m | estimated offload   66.81% | loss   6515.808
+iteration   500 | residual RMSE   24.027 N*m | estimated offload   68.68% | loss   6001.790
+iteration  1000 | residual RMSE   24.021 N*m | estimated offload   68.99% | loss   5945.506
+iteration  1500 | residual RMSE   24.004 N*m | estimated offload   69.16% | loss   5906.433
+Held-out exact mechanics: 1/375 batches (  0.3%) | elapsed    0.0 min | ETA    3.5 min
+Held-out exact mechanics: 10/375 batches (  2.7%) | elapsed    0.1 min | ETA    3.9 min
+Held-out exact mechanics: 20/375 batches (  5.3%) | elapsed    0.2 min | ETA    4.0 min
+Held-out exact mechanics: 30/375 batches (  8.0%) | elapsed    0.3 min | ETA    4.0 min
+Held-out exact mechanics: 40/375 batches ( 10.7%) | elapsed    0.5 min | ETA    3.8 min
+Held-out exact mechanics: 50/375 batches ( 13.3%) | elapsed    0.6 min | ETA    3.8 min
+Held-out exact mechanics: 60/375 batches ( 16.0%) | elapsed    0.7 min | ETA    3.7 min
+Held-out exact mechanics: 70/375 batches ( 18.7%) | elapsed    0.8 min | ETA    3.6 min
+Held-out exact mechanics: 80/375 batches ( 21.3%) | elapsed    0.9 min | ETA    3.5 min
+Held-out exact mechanics: 90/375 batches ( 24.0%) | elapsed    1.1 min | ETA    3.4 min
+Held-out exact mechanics: 100/375 batches ( 26.7%) | elapsed    1.2 min | ETA    3.2 min
+Held-out exact mechanics: 110/375 batches ( 29.3%) | elapsed    1.3 min | ETA    3.1 min
+Held-out exact mechanics: 120/375 batches ( 32.0%) | elapsed    1.4 min | ETA    3.0 min
+Held-out exact mechanics: 130/375 batches ( 34.7%) | elapsed    1.5 min | ETA    2.9 min
+Held-out exact mechanics: 140/375 batches ( 37.3%) | elapsed    1.6 min | ETA    2.8 min
+Held-out exact mechanics: 150/375 batches ( 40.0%) | elapsed    1.8 min | ETA    2.6 min
+Held-out exact mechanics: 160/375 batches ( 42.7%) | elapsed    1.9 min | ETA    2.5 min
+Held-out exact mechanics: 170/375 batches ( 45.3%) | elapsed    2.0 min | ETA    2.4 min
+Held-out exact mechanics: 180/375 batches ( 48.0%) | elapsed    2.1 min | ETA    2.3 min
+Held-out exact mechanics: 190/375 batches ( 50.7%) | elapsed    2.2 min | ETA    2.2 min
+Held-out exact mechanics: 200/375 batches ( 53.3%) | elapsed    2.4 min | ETA    2.1 min
+Held-out exact mechanics: 210/375 batches ( 56.0%) | elapsed    2.5 min | ETA    1.9 min
+Held-out exact mechanics: 220/375 batches ( 58.7%) | elapsed    2.6 min | ETA    1.8 min
+Held-out exact mechanics: 230/375 batches ( 61.3%) | elapsed    2.7 min | ETA    1.7 min
+Held-out exact mechanics: 240/375 batches ( 64.0%) | elapsed    2.8 min | ETA    1.6 min
+Held-out exact mechanics: 250/375 batches ( 66.7%) | elapsed    2.9 min | ETA    1.5 min
+Held-out exact mechanics: 260/375 batches ( 69.3%) | elapsed    3.1 min | ETA    1.4 min
+Held-out exact mechanics: 270/375 batches ( 72.0%) | elapsed    3.2 min | ETA    1.2 min
+Held-out exact mechanics: 280/375 batches ( 74.7%) | elapsed    3.3 min | ETA    1.1 min
+Held-out exact mechanics: 290/375 batches ( 77.3%) | elapsed    3.4 min | ETA    1.0 min
+Held-out exact mechanics: 300/375 batches ( 80.0%) | elapsed    3.5 min | ETA    0.9 min
+Held-out exact mechanics: 310/375 batches ( 82.7%) | elapsed    3.7 min | ETA    0.8 min
+Held-out exact mechanics: 320/375 batches ( 85.3%) | elapsed    3.8 min | ETA    0.6 min
+Held-out exact mechanics: 330/375 batches ( 88.0%) | elapsed    3.9 min | ETA    0.5 min
+Held-out exact mechanics: 340/375 batches ( 90.7%) | elapsed    4.0 min | ETA    0.4 min
+Held-out exact mechanics: 350/375 batches ( 93.3%) | elapsed    4.1 min | ETA    0.3 min
+Held-out exact mechanics: 360/375 batches ( 96.0%) | elapsed    4.2 min | ETA    0.2 min
+Held-out exact mechanics: 370/375 batches ( 98.7%) | elapsed    4.4 min | ETA    0.1 min
+Held-out exact mechanics: 375/375 batches (100.0%) | elapsed    4.4 min | ETA    0.0 min
+Held-out exact 3D aggregate offload: 67.024%
+Mean profile offload: 63.598%
+Negative-offload profiles: 0.25%
+Mean internal-force residual: 0.000548 N
+Predicted stiffness N/m: median 75.776 | p95 436.155 | max 1867.364
+Python: C:\Users\kn109\anaconda3\envs\adaptive-spring-passive\python.exe
+CUDA device: NVIDIA GeForce RTX 3060 Ti
+Topology: C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\topologies\spatial\internal_fan_3d_60_spring.json
+iteration     1 | residual RMSE  115.384 N*m | estimated offload -102.46% | loss 821963.125
+iteration   500 | residual RMSE   34.865 N*m | estimated offload   41.10% | loss  22692.771
+iteration  1000 | residual RMSE   30.196 N*m | estimated offload   51.14% | loss  14277.978
+iteration  1500 | residual RMSE   28.116 N*m | estimated offload   56.01% | loss  11221.678
+iteration  2000 | residual RMSE   27.001 N*m | estimated offload   59.08% | loss   9678.803
+iteration  2500 | residual RMSE   26.347 N*m | estimated offload   61.13% | loss   8788.517
+iteration  3000 | residual RMSE   25.931 N*m | estimated offload   62.50% | loss   8237.660
+iteration  3500 | residual RMSE   25.621 N*m | estimated offload   63.51% | loss   7842.036
+iteration  4000 | residual RMSE   25.358 N*m | estimated offload   64.30% | loss   7530.330
+iteration  4500 | residual RMSE   25.125 N*m | estimated offload   64.95% | loss   7268.473
+iteration  5000 | residual RMSE   24.901 N*m | estimated offload   65.54% | loss   7030.060
+iteration  5500 | residual RMSE   24.673 N*m | estimated offload   66.08% | loss   6802.764
+iteration  6000 | residual RMSE   24.456 N*m | estimated offload   66.58% | loss   6595.613
+iteration  6500 | residual RMSE   24.272 N*m | estimated offload   67.01% | loss   6418.810
+iteration  7000 | residual RMSE   24.113 N*m | estimated offload   67.40% | loss   6268.556
+iteration  7500 | residual RMSE   23.978 N*m | estimated offload   67.73% | loss   6140.227
+iteration  8000 | residual RMSE   23.865 N*m | estimated offload   68.02% | loss   6034.334
+iteration  8500 | residual RMSE   23.771 N*m | estimated offload   68.27% | loss   5944.185
+iteration  9000 | residual RMSE   23.680 N*m | estimated offload   68.48% | loss   5862.451
+iteration  9500 | residual RMSE   23.613 N*m | estimated offload   68.68% | loss   5796.306
+iteration 10000 | residual RMSE   23.550 N*m | estimated offload   68.86% | loss   5736.512
+Re-relaxing 3D mechanics at MLP predictions (1/2) over 600 profiles x 160 samples...
+Mechanics correction 1/2: 1/188 batches (  0.5%) | elapsed    0.0 min | ETA    2.1 min
+Mechanics correction 1/2: 10/188 batches (  5.3%) | elapsed    0.1 min | ETA    1.9 min
+Mechanics correction 1/2: 20/188 batches ( 10.6%) | elapsed    0.2 min | ETA    1.9 min
+Mechanics correction 1/2: 30/188 batches ( 16.0%) | elapsed    0.4 min | ETA    1.9 min
+Mechanics correction 1/2: 40/188 batches ( 21.3%) | elapsed    0.5 min | ETA    1.8 min
+Mechanics correction 1/2: 50/188 batches ( 26.6%) | elapsed    0.6 min | ETA    1.7 min
+Mechanics correction 1/2: 60/188 batches ( 31.9%) | elapsed    0.7 min | ETA    1.5 min
+Mechanics correction 1/2: 70/188 batches ( 37.2%) | elapsed    0.8 min | ETA    1.4 min
+Mechanics correction 1/2: 80/188 batches ( 42.6%) | elapsed    1.0 min | ETA    1.3 min
+Mechanics correction 1/2: 90/188 batches ( 47.9%) | elapsed    1.1 min | ETA    1.2 min
+Mechanics correction 1/2: 100/188 batches ( 53.2%) | elapsed    1.2 min | ETA    1.1 min
+Mechanics correction 1/2: 110/188 batches ( 58.5%) | elapsed    1.3 min | ETA    0.9 min
+Mechanics correction 1/2: 120/188 batches ( 63.8%) | elapsed    1.5 min | ETA    0.8 min
+Mechanics correction 1/2: 130/188 batches ( 69.1%) | elapsed    1.6 min | ETA    0.7 min
+Mechanics correction 1/2: 140/188 batches ( 74.5%) | elapsed    1.7 min | ETA    0.6 min
+Mechanics correction 1/2: 150/188 batches ( 79.8%) | elapsed    1.8 min | ETA    0.5 min
+Mechanics correction 1/2: 160/188 batches ( 85.1%) | elapsed    1.9 min | ETA    0.3 min
+Mechanics correction 1/2: 170/188 batches ( 90.4%) | elapsed    2.1 min | ETA    0.2 min
+Mechanics correction 1/2: 180/188 batches ( 95.7%) | elapsed    2.2 min | ETA    0.1 min
+Mechanics correction 1/2: 188/188 batches (100.0%) | elapsed    2.3 min | ETA    0.0 min
+iteration     1 | residual RMSE   24.116 N*m | estimated offload   66.58% | loss   6412.267
+iteration   500 | residual RMSE   23.204 N*m | estimated offload   69.72% | loss   5428.826
+iteration  1000 | residual RMSE   23.180 N*m | estimated offload   70.00% | loss   5373.573
+iteration  1500 | residual RMSE   23.162 N*m | estimated offload   70.19% | loss   5334.357
+Re-relaxing 3D mechanics at MLP predictions (2/2) over 600 profiles x 160 samples...
+Mechanics correction 2/2: 1/188 batches (  0.5%) | elapsed    0.0 min | ETA    1.9 min
+Mechanics correction 2/2: 10/188 batches (  5.3%) | elapsed    0.1 min | ETA    1.8 min
+Mechanics correction 2/2: 20/188 batches ( 10.6%) | elapsed    0.2 min | ETA    1.9 min
+Mechanics correction 2/2: 30/188 batches ( 16.0%) | elapsed    0.3 min | ETA    1.8 min
+Mechanics correction 2/2: 40/188 batches ( 21.3%) | elapsed    0.5 min | ETA    1.7 min
+Mechanics correction 2/2: 50/188 batches ( 26.6%) | elapsed    0.6 min | ETA    1.6 min
+Mechanics correction 2/2: 60/188 batches ( 31.9%) | elapsed    0.7 min | ETA    1.5 min
+Mechanics correction 2/2: 70/188 batches ( 37.2%) | elapsed    0.8 min | ETA    1.4 min
+Mechanics correction 2/2: 80/188 batches ( 42.6%) | elapsed    1.0 min | ETA    1.3 min
+Mechanics correction 2/2: 90/188 batches ( 47.9%) | elapsed    1.1 min | ETA    1.2 min
+Mechanics correction 2/2: 100/188 batches ( 53.2%) | elapsed    1.2 min | ETA    1.1 min
+Mechanics correction 2/2: 110/188 batches ( 58.5%) | elapsed    1.3 min | ETA    0.9 min
+Mechanics correction 2/2: 120/188 batches ( 63.8%) | elapsed    1.5 min | ETA    0.8 min
+Mechanics correction 2/2: 130/188 batches ( 69.1%) | elapsed    1.6 min | ETA    0.7 min
+Mechanics correction 2/2: 140/188 batches ( 74.5%) | elapsed    1.7 min | ETA    0.6 min
+Mechanics correction 2/2: 150/188 batches ( 79.8%) | elapsed    1.8 min | ETA    0.5 min
+Mechanics correction 2/2: 160/188 batches ( 85.1%) | elapsed    1.9 min | ETA    0.3 min
+Mechanics correction 2/2: 170/188 batches ( 90.4%) | elapsed    2.1 min | ETA    0.2 min
+Mechanics correction 2/2: 180/188 batches ( 95.7%) | elapsed    2.2 min | ETA    0.1 min
+Mechanics correction 2/2: 188/188 batches (100.0%) | elapsed    2.3 min | ETA    0.0 min
+iteration     1 | residual RMSE   24.295 N*m | estimated offload   67.31% | loss   6378.190
+iteration   500 | residual RMSE   23.878 N*m | estimated offload   69.49% | loss   5788.982
+iteration  1000 | residual RMSE   23.847 N*m | estimated offload   69.81% | loss   5719.291
+iteration  1500 | residual RMSE   23.829 N*m | estimated offload   70.00% | loss   5678.350
+Held-out exact mechanics: 1/375 batches (  0.3%) | elapsed    0.0 min | ETA    4.8 min
+Held-out exact mechanics: 10/375 batches (  2.7%) | elapsed    0.1 min | ETA    4.2 min
+Held-out exact mechanics: 20/375 batches (  5.3%) | elapsed    0.2 min | ETA    4.2 min
+Held-out exact mechanics: 30/375 batches (  8.0%) | elapsed    0.4 min | ETA    4.1 min
+Held-out exact mechanics: 40/375 batches ( 10.7%) | elapsed    0.5 min | ETA    4.0 min
+Held-out exact mechanics: 50/375 batches ( 13.3%) | elapsed    0.6 min | ETA    3.9 min
+Held-out exact mechanics: 60/375 batches ( 16.0%) | elapsed    0.7 min | ETA    3.8 min
+Held-out exact mechanics: 70/375 batches ( 18.7%) | elapsed    0.8 min | ETA    3.7 min
+Held-out exact mechanics: 80/375 batches ( 21.3%) | elapsed    1.0 min | ETA    3.6 min
+Held-out exact mechanics: 90/375 batches ( 24.0%) | elapsed    1.1 min | ETA    3.5 min
+Held-out exact mechanics: 100/375 batches ( 26.7%) | elapsed    1.2 min | ETA    3.4 min
+Held-out exact mechanics: 110/375 batches ( 29.3%) | elapsed    1.3 min | ETA    3.2 min
+Held-out exact mechanics: 120/375 batches ( 32.0%) | elapsed    1.5 min | ETA    3.1 min
+Held-out exact mechanics: 130/375 batches ( 34.7%) | elapsed    1.6 min | ETA    3.0 min
+Held-out exact mechanics: 140/375 batches ( 37.3%) | elapsed    1.7 min | ETA    2.9 min
+Held-out exact mechanics: 150/375 batches ( 40.0%) | elapsed    1.8 min | ETA    2.7 min
+Held-out exact mechanics: 160/375 batches ( 42.7%) | elapsed    2.0 min | ETA    2.6 min
+Held-out exact mechanics: 170/375 batches ( 45.3%) | elapsed    2.1 min | ETA    2.5 min
+Held-out exact mechanics: 180/375 batches ( 48.0%) | elapsed    2.2 min | ETA    2.4 min
+Held-out exact mechanics: 190/375 batches ( 50.7%) | elapsed    2.3 min | ETA    2.3 min
+Held-out exact mechanics: 200/375 batches ( 53.3%) | elapsed    2.4 min | ETA    2.1 min
+Held-out exact mechanics: 210/375 batches ( 56.0%) | elapsed    2.6 min | ETA    2.0 min
+Held-out exact mechanics: 220/375 batches ( 58.7%) | elapsed    2.7 min | ETA    1.9 min
+Held-out exact mechanics: 230/375 batches ( 61.3%) | elapsed    2.8 min | ETA    1.8 min
+Held-out exact mechanics: 240/375 batches ( 64.0%) | elapsed    2.9 min | ETA    1.6 min
+Held-out exact mechanics: 250/375 batches ( 66.7%) | elapsed    3.1 min | ETA    1.5 min
+Held-out exact mechanics: 260/375 batches ( 69.3%) | elapsed    3.2 min | ETA    1.4 min
+Held-out exact mechanics: 270/375 batches ( 72.0%) | elapsed    3.3 min | ETA    1.3 min
+Held-out exact mechanics: 280/375 batches ( 74.7%) | elapsed    3.4 min | ETA    1.2 min
+Held-out exact mechanics: 290/375 batches ( 77.3%) | elapsed    3.5 min | ETA    1.0 min
+Held-out exact mechanics: 300/375 batches ( 80.0%) | elapsed    3.7 min | ETA    0.9 min
+Held-out exact mechanics: 310/375 batches ( 82.7%) | elapsed    3.8 min | ETA    0.8 min
+Held-out exact mechanics: 320/375 batches ( 85.3%) | elapsed    3.9 min | ETA    0.7 min
+Held-out exact mechanics: 330/375 batches ( 88.0%) | elapsed    4.0 min | ETA    0.6 min
+Held-out exact mechanics: 340/375 batches ( 90.7%) | elapsed    4.2 min | ETA    0.4 min
+Held-out exact mechanics: 350/375 batches ( 93.3%) | elapsed    4.3 min | ETA    0.3 min
+Held-out exact mechanics: 360/375 batches ( 96.0%) | elapsed    4.4 min | ETA    0.2 min
+Held-out exact mechanics: 370/375 batches ( 98.7%) | elapsed    4.5 min | ETA    0.1 min
+Held-out exact mechanics: 375/375 batches (100.0%) | elapsed    4.6 min | ETA    0.0 min
+Held-out exact 3D aggregate offload: 65.410%
+Mean profile offload: 61.930%
+Negative-offload profiles: 0.50%
+Mean internal-force residual: 0.000330 N
+Predicted stiffness N/m: median 77.471 | p95 429.485 | max 1907.653
+Python: C:\Users\kn109\anaconda3\envs\adaptive-spring-passive\python.exe
+CUDA device: NVIDIA GeForce RTX 3060 Ti
+Topology: C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\topologies\spatial\internal_fan_3d_60_spring.json
+iteration     1 | residual RMSE  115.408 N*m | estimated offload -102.08% | loss 820768.188
+iteration   500 | residual RMSE   35.032 N*m | estimated offload   40.77% | loss  23031.717
+iteration  1000 | residual RMSE   30.356 N*m | estimated offload   50.66% | loss  14562.609
+iteration  1500 | residual RMSE   28.278 N*m | estimated offload   55.63% | loss  11443.012
+iteration  2000 | residual RMSE   27.115 N*m | estimated offload   58.79% | loss   9825.160
+iteration  2500 | residual RMSE   26.421 N*m | estimated offload   60.91% | loss   8883.545
+iteration  3000 | residual RMSE   25.971 N*m | estimated offload   62.37% | loss   8288.574
+iteration  3500 | residual RMSE   25.650 N*m | estimated offload   63.41% | loss   7880.289
+iteration  4000 | residual RMSE   25.395 N*m | estimated offload   64.20% | loss   7570.351
+iteration  4500 | residual RMSE   25.152 N*m | estimated offload   64.88% | loss   7298.776
+iteration  5000 | residual RMSE   24.915 N*m | estimated offload   65.48% | loss   7049.823
+iteration  5500 | residual RMSE   24.680 N*m | estimated offload   66.03% | loss   6816.271
+iteration  6000 | residual RMSE   24.469 N*m | estimated offload   66.52% | loss   6612.099
+iteration  6500 | residual RMSE   24.278 N*m | estimated offload   66.95% | loss   6434.258
+iteration  7000 | residual RMSE   24.123 N*m | estimated offload   67.32% | loss   6287.552
+iteration  7500 | residual RMSE   23.997 N*m | estimated offload   67.64% | loss   6165.688
+iteration  8000 | residual RMSE   23.891 N*m | estimated offload   67.93% | loss   6062.147
+iteration  8500 | residual RMSE   23.796 N*m | estimated offload   68.18% | loss   5971.622
+iteration  9000 | residual RMSE   23.708 N*m | estimated offload   68.39% | loss   5892.225
+iteration  9500 | residual RMSE   23.648 N*m | estimated offload   68.59% | loss   5828.795
+iteration 10000 | residual RMSE   23.597 N*m | estimated offload   68.75% | loss   5776.108
+Re-relaxing 3D mechanics at MLP predictions (1/2) over 600 profiles x 160 samples...
+Mechanics correction 1/2: 1/188 batches (  0.5%) | elapsed    0.0 min | ETA    2.4 min
+Mechanics correction 1/2: 10/188 batches (  5.3%) | elapsed    0.1 min | ETA    2.0 min
+Mechanics correction 1/2: 20/188 batches ( 10.6%) | elapsed    0.2 min | ETA    2.0 min
+Mechanics correction 1/2: 30/188 batches ( 16.0%) | elapsed    0.4 min | ETA    1.9 min
+Mechanics correction 1/2: 40/188 batches ( 21.3%) | elapsed    0.5 min | ETA    1.8 min
+Mechanics correction 1/2: 50/188 batches ( 26.6%) | elapsed    0.6 min | ETA    1.6 min
+Mechanics correction 1/2: 60/188 batches ( 31.9%) | elapsed    0.7 min | ETA    1.5 min
+Mechanics correction 1/2: 70/188 batches ( 37.2%) | elapsed    0.8 min | ETA    1.4 min
+Mechanics correction 1/2: 80/188 batches ( 42.6%) | elapsed    1.0 min | ETA    1.3 min
+Mechanics correction 1/2: 90/188 batches ( 47.9%) | elapsed    1.1 min | ETA    1.2 min
+Mechanics correction 1/2: 100/188 batches ( 53.2%) | elapsed    1.2 min | ETA    1.1 min
+Mechanics correction 1/2: 110/188 batches ( 58.5%) | elapsed    1.3 min | ETA    0.9 min
+Mechanics correction 1/2: 120/188 batches ( 63.8%) | elapsed    1.4 min | ETA    0.8 min
+Mechanics correction 1/2: 130/188 batches ( 69.1%) | elapsed    1.6 min | ETA    0.7 min
+Mechanics correction 1/2: 140/188 batches ( 74.5%) | elapsed    1.7 min | ETA    0.6 min
+Mechanics correction 1/2: 150/188 batches ( 79.8%) | elapsed    1.8 min | ETA    0.5 min
+Mechanics correction 1/2: 160/188 batches ( 85.1%) | elapsed    1.9 min | ETA    0.3 min
+Mechanics correction 1/2: 170/188 batches ( 90.4%) | elapsed    2.1 min | ETA    0.2 min
+Mechanics correction 1/2: 180/188 batches ( 95.7%) | elapsed    2.2 min | ETA    0.1 min
+Mechanics correction 1/2: 188/188 batches (100.0%) | elapsed    2.3 min | ETA    0.0 min
+iteration     1 | residual RMSE   24.029 N*m | estimated offload   67.16% | loss   6266.627
+iteration   500 | residual RMSE   23.110 N*m | estimated offload   70.22% | loss   5305.860
+iteration  1000 | residual RMSE   23.090 N*m | estimated offload   70.49% | loss   5253.279
+iteration  1500 | residual RMSE   23.067 N*m | estimated offload   70.68% | loss   5212.596
+Re-relaxing 3D mechanics at MLP predictions (2/2) over 600 profiles x 160 samples...
+Mechanics correction 2/2: 1/188 batches (  0.5%) | elapsed    0.0 min | ETA    1.7 min
+Mechanics correction 2/2: 10/188 batches (  5.3%) | elapsed    0.1 min | ETA    1.9 min
+Mechanics correction 2/2: 20/188 batches ( 10.6%) | elapsed    0.2 min | ETA    1.9 min
+Mechanics correction 2/2: 30/188 batches ( 16.0%) | elapsed    0.3 min | ETA    1.8 min
+Mechanics correction 2/2: 40/188 batches ( 21.3%) | elapsed    0.5 min | ETA    1.7 min
+Mechanics correction 2/2: 50/188 batches ( 26.6%) | elapsed    0.6 min | ETA    1.6 min
+Mechanics correction 2/2: 60/188 batches ( 31.9%) | elapsed    0.7 min | ETA    1.5 min
+Mechanics correction 2/2: 70/188 batches ( 37.2%) | elapsed    0.8 min | ETA    1.4 min
+Mechanics correction 2/2: 80/188 batches ( 42.6%) | elapsed    1.0 min | ETA    1.3 min
+Mechanics correction 2/2: 90/188 batches ( 47.9%) | elapsed    1.1 min | ETA    1.2 min
+Mechanics correction 2/2: 100/188 batches ( 53.2%) | elapsed    1.2 min | ETA    1.1 min
+Mechanics correction 2/2: 110/188 batches ( 58.5%) | elapsed    1.3 min | ETA    0.9 min
+Mechanics correction 2/2: 120/188 batches ( 63.8%) | elapsed    1.4 min | ETA    0.8 min
+Mechanics correction 2/2: 130/188 batches ( 69.1%) | elapsed    1.6 min | ETA    0.7 min
+Mechanics correction 2/2: 140/188 batches ( 74.5%) | elapsed    1.7 min | ETA    0.6 min
+Mechanics correction 2/2: 150/188 batches ( 79.8%) | elapsed    1.8 min | ETA    0.5 min
+Mechanics correction 2/2: 160/188 batches ( 85.1%) | elapsed    1.9 min | ETA    0.3 min
+Mechanics correction 2/2: 170/188 batches ( 90.4%) | elapsed    2.0 min | ETA    0.2 min
+Mechanics correction 2/2: 180/188 batches ( 95.7%) | elapsed    2.2 min | ETA    0.1 min
+Mechanics correction 2/2: 188/188 batches (100.0%) | elapsed    2.2 min | ETA    0.0 min
+iteration     1 | residual RMSE   24.484 N*m | estimated offload   66.44% | loss   6634.476
+iteration   500 | residual RMSE   24.145 N*m | estimated offload   68.41% | loss   6108.560
+iteration  1000 | residual RMSE   24.137 N*m | estimated offload   68.70% | loss   6052.358
+iteration  1500 | residual RMSE   24.125 N*m | estimated offload   68.89% | loss   6014.777
+Held-out exact mechanics: 1/375 batches (  0.3%) | elapsed    0.0 min | ETA    4.1 min
+Held-out exact mechanics: 10/375 batches (  2.7%) | elapsed    0.1 min | ETA    4.0 min
+Held-out exact mechanics: 20/375 batches (  5.3%) | elapsed    0.2 min | ETA    4.1 min
+Held-out exact mechanics: 30/375 batches (  8.0%) | elapsed    0.4 min | ETA    4.1 min
+Held-out exact mechanics: 40/375 batches ( 10.7%) | elapsed    0.5 min | ETA    4.0 min
+Held-out exact mechanics: 50/375 batches ( 13.3%) | elapsed    0.6 min | ETA    3.9 min
+Held-out exact mechanics: 60/375 batches ( 16.0%) | elapsed    0.7 min | ETA    3.8 min
+Held-out exact mechanics: 70/375 batches ( 18.7%) | elapsed    0.8 min | ETA    3.6 min
+Held-out exact mechanics: 80/375 batches ( 21.3%) | elapsed    1.0 min | ETA    3.5 min
+Held-out exact mechanics: 90/375 batches ( 24.0%) | elapsed    1.1 min | ETA    3.4 min
+Held-out exact mechanics: 100/375 batches ( 26.7%) | elapsed    1.2 min | ETA    3.3 min
+Held-out exact mechanics: 110/375 batches ( 29.3%) | elapsed    1.3 min | ETA    3.2 min
+Held-out exact mechanics: 120/375 batches ( 32.0%) | elapsed    1.4 min | ETA    3.1 min
+Held-out exact mechanics: 130/375 batches ( 34.7%) | elapsed    1.6 min | ETA    3.0 min
+Held-out exact mechanics: 140/375 batches ( 37.3%) | elapsed    1.7 min | ETA    2.8 min
+Held-out exact mechanics: 150/375 batches ( 40.0%) | elapsed    1.8 min | ETA    2.7 min
+Held-out exact mechanics: 160/375 batches ( 42.7%) | elapsed    1.9 min | ETA    2.6 min
+Held-out exact mechanics: 170/375 batches ( 45.3%) | elapsed    2.1 min | ETA    2.5 min
+Held-out exact mechanics: 180/375 batches ( 48.0%) | elapsed    2.2 min | ETA    2.4 min
+Held-out exact mechanics: 190/375 batches ( 50.7%) | elapsed    2.3 min | ETA    2.2 min
+Held-out exact mechanics: 200/375 batches ( 53.3%) | elapsed    2.4 min | ETA    2.1 min
+Held-out exact mechanics: 210/375 batches ( 56.0%) | elapsed    2.5 min | ETA    2.0 min
+Held-out exact mechanics: 220/375 batches ( 58.7%) | elapsed    2.7 min | ETA    1.9 min
+Held-out exact mechanics: 230/375 batches ( 61.3%) | elapsed    2.8 min | ETA    1.8 min
+Held-out exact mechanics: 240/375 batches ( 64.0%) | elapsed    2.9 min | ETA    1.6 min
+Held-out exact mechanics: 250/375 batches ( 66.7%) | elapsed    3.0 min | ETA    1.5 min
+Held-out exact mechanics: 260/375 batches ( 69.3%) | elapsed    3.2 min | ETA    1.4 min
+Held-out exact mechanics: 270/375 batches ( 72.0%) | elapsed    3.3 min | ETA    1.3 min
+Held-out exact mechanics: 280/375 batches ( 74.7%) | elapsed    3.4 min | ETA    1.2 min
+Held-out exact mechanics: 290/375 batches ( 77.3%) | elapsed    3.5 min | ETA    1.0 min
+Held-out exact mechanics: 300/375 batches ( 80.0%) | elapsed    3.6 min | ETA    0.9 min
+Held-out exact mechanics: 310/375 batches ( 82.7%) | elapsed    3.8 min | ETA    0.8 min
+Held-out exact mechanics: 320/375 batches ( 85.3%) | elapsed    3.9 min | ETA    0.7 min
+Held-out exact mechanics: 330/375 batches ( 88.0%) | elapsed    4.0 min | ETA    0.5 min
+Held-out exact mechanics: 340/375 batches ( 90.7%) | elapsed    4.1 min | ETA    0.4 min
+Held-out exact mechanics: 350/375 batches ( 93.3%) | elapsed    4.2 min | ETA    0.3 min
+Held-out exact mechanics: 360/375 batches ( 96.0%) | elapsed    4.4 min | ETA    0.2 min
+Held-out exact mechanics: 370/375 batches ( 98.7%) | elapsed    4.5 min | ETA    0.1 min
+Held-out exact mechanics: 375/375 batches (100.0%) | elapsed    4.5 min | ETA    0.0 min
+Held-out exact 3D aggregate offload: 66.124%
+Mean profile offload: 63.066%
+Negative-offload profiles: 0.25%
+Mean internal-force residual: 0.000516 N
+Predicted stiffness N/m: median 75.224 | p95 446.459 | max 1946.309
+Saved C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\plots\profile_conditioned_passive_3d\canonical_seed101_torque_angle.png
+Saved C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\plots\profile_conditioned_passive_3d\canonical_seed101_time_traces.png
+Saved C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\plots\profile_conditioned_passive_3d\canonical_seed101_stiffness_heatmap.png
