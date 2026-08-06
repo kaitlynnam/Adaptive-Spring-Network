@@ -1,8 +1,0 @@
-Model,Profiles,"Mean RMSE
-[N·m]","Median RMSE
-[N·m]","Mean offload
-[%]","Median offload
-[%]","Mean |motor|
-[N·m]"
-Fixed stiffness,30,51.88,53.47,-3.62,-5.22,46.06
-Adaptive stiffness,30,28.75,29.21,47.34,48.07,23.86

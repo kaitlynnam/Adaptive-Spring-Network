@@ -1,47 +1,26 @@
-# Current figures
+# Active passive-control figures
 
-Only figures that directly support the active results are retained.
+All active plots are for the profile-conditioned passive controller using
+`topologies/spatial/internal_fan_3d_60_spring.json`.
 
-## `current/stiffness`
+Currently available from the exact-mechanics seed-101 checkpoint:
 
-- `linear_heldout_examples.png` — held-out torque examples for the converged
-  linear adaptive-stiffness result.
-- `linear_training_convergence.png` — corresponding training history.
-- `cubic_heldout_examples.png` — matched cubic-spring held-out examples.
-- `cubic_training_convergence.png` — corresponding training history.
+- `profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_torque_angle.png`
+- `profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_time_traces.png`
+- `profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_stiffness_heatmap.png`
 
-## `current/preload`
+## Required paper set
 
-- `net_energy_command_schedule.png` — converged adaptive-preload command
-  schedule.
-- `net_energy_training_convergence.png` — net-energy training history.
-- `time_and_torque_angle_examples.png` — representative preload behavior in
-  time and torque-angle coordinates.
-- `preload_topology.png` — active preload topology diagram.
+1. 60-spring 3D topology and labeled joint geometry.
+2. Profile-to-fixed-stiffness passive-control pipeline.
+3. Representative held-out torque-angle behavior.
+4. Representative held-out time traces.
+5. Per-spring stiffness allocation for representative profiles.
+6. Aggregate held-out performance by roughness family and seed.
+7. Training and mechanics-correction convergence.
+8. Multi-seed robustness summary.
 
-## `current/profiles`
-
-- `synthetic_torque_profile_gallery.png` — representative generated target
-  torque-angle profiles.
-
-## `current/validation`
-
-- `linear_relaxation_convergence_audit.png` — linear mechanics convergence
-  audit.
-- `cubic_relaxation_convergence_audit.png` — cubic mechanics convergence
-  audit.
-
-## `current/spatial`
-
-- `candidate131_56spring_preliminary_heldout_examples.png` — preliminary
-  held-out examples for the current best-found 56-spring search candidate.
-- `candidate131_56spring_preliminary_convergence.png` — its short screening
-  run, not a paper-quality 5000-iteration result.
-- `candidate022_48spring_dynamic_demo.html` — interactive 3D demonstration
-  with dynamic learned stiffness and torque-time visualization. It uses the
-  earlier 48-spring candidate and is retained as a visualization, not as the
-  current topology winner.
-
-Training and rendering scripts may generate additional files during future
-experiments. Promote only final, interpretable figures into `current/`; delete
-screening exports once their numerical tables have been preserved.
+Items 3–5 are available. Items 6 and 8 must wait for the running seed-202 and
+seed-303 jobs. Figures are intentionally not regenerated during those runs.
+Figures belonging to the former 24-, 30-, 48-, and 56-spring pipelines are
+stored under `archive/timestep_adaptation/artifacts/plots/`.
