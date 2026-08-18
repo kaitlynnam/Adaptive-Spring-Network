@@ -1,0 +1,99 @@
+Starting closed_loop training: 6000 profiles, 6 periods, 5000 iterations, 0 mechanics refreshes on cuda
+Loading 3D topology and building the initial relaxed torque basis...
+Initial relaxed torque basis complete; generating trajectories...
+Trajectory generation complete; beginning optimization...
+iteration     1 | closed-loop adapted RMSE   55.337 N*m
+iteration   100 | closed-loop adapted RMSE   50.637 N*m
+iteration   200 | closed-loop adapted RMSE   46.955 N*m
+iteration   300 | closed-loop adapted RMSE   44.662 N*m
+iteration   400 | closed-loop adapted RMSE   42.999 N*m
+iteration   500 | closed-loop adapted RMSE   41.563 N*m
+iteration   600 | closed-loop adapted RMSE   40.339 N*m
+iteration   700 | closed-loop adapted RMSE   39.273 N*m
+iteration   800 | closed-loop adapted RMSE   38.336 N*m
+iteration   900 | closed-loop adapted RMSE   37.488 N*m
+iteration  1000 | closed-loop adapted RMSE   36.754 N*m
+iteration  1100 | closed-loop adapted RMSE   36.108 N*m
+iteration  1200 | closed-loop adapted RMSE   35.526 N*m
+iteration  1300 | closed-loop adapted RMSE   35.022 N*m
+iteration  1400 | closed-loop adapted RMSE   34.580 N*m
+iteration  1500 | closed-loop adapted RMSE   34.191 N*m
+iteration  1600 | closed-loop adapted RMSE   33.850 N*m
+iteration  1700 | closed-loop adapted RMSE   33.548 N*m
+iteration  1800 | closed-loop adapted RMSE   33.278 N*m
+iteration  1900 | closed-loop adapted RMSE   33.036 N*m
+iteration  2000 | closed-loop adapted RMSE   32.814 N*m
+iteration  2100 | closed-loop adapted RMSE   32.618 N*m
+iteration  2200 | closed-loop adapted RMSE   32.439 N*m
+iteration  2300 | closed-loop adapted RMSE   32.275 N*m
+iteration  2400 | closed-loop adapted RMSE   32.126 N*m
+iteration  2500 | closed-loop adapted RMSE   31.985 N*m
+iteration  2600 | closed-loop adapted RMSE   31.847 N*m
+iteration  2700 | closed-loop adapted RMSE   31.719 N*m
+iteration  2800 | closed-loop adapted RMSE   31.594 N*m
+iteration  2900 | closed-loop adapted RMSE   31.473 N*m
+iteration  3000 | closed-loop adapted RMSE   31.353 N*m
+iteration  3100 | closed-loop adapted RMSE   31.236 N*m
+iteration  3200 | closed-loop adapted RMSE   31.117 N*m
+iteration  3300 | closed-loop adapted RMSE   31.000 N*m
+iteration  3400 | closed-loop adapted RMSE   30.883 N*m
+iteration  3500 | closed-loop adapted RMSE   30.766 N*m
+iteration  3600 | closed-loop adapted RMSE   30.648 N*m
+iteration  3700 | closed-loop adapted RMSE   30.525 N*m
+iteration  3800 | closed-loop adapted RMSE   30.404 N*m
+iteration  3900 | closed-loop adapted RMSE   30.285 N*m
+iteration  4000 | closed-loop adapted RMSE   30.167 N*m
+iteration  4100 | closed-loop adapted RMSE   30.047 N*m
+iteration  4200 | closed-loop adapted RMSE   29.928 N*m
+iteration  4300 | closed-loop adapted RMSE   29.807 N*m
+iteration  4400 | closed-loop adapted RMSE   29.688 N*m
+iteration  4500 | closed-loop adapted RMSE   29.568 N*m
+iteration  4600 | closed-loop adapted RMSE   29.450 N*m
+iteration  4700 | closed-loop adapted RMSE   29.332 N*m
+iteration  4800 | closed-loop adapted RMSE   29.214 N*m
+iteration  4900 | closed-loop adapted RMSE   29.094 N*m
+iteration  5000 | closed-loop adapted RMSE   28.977 N*m
+Exact held-out mechanics: 1/375 batches
+Exact held-out mechanics: 10/375 batches
+Exact held-out mechanics: 20/375 batches
+Exact held-out mechanics: 30/375 batches
+Exact held-out mechanics: 40/375 batches
+Exact held-out mechanics: 50/375 batches
+Exact held-out mechanics: 60/375 batches
+Exact held-out mechanics: 70/375 batches
+Exact held-out mechanics: 80/375 batches
+Exact held-out mechanics: 90/375 batches
+Exact held-out mechanics: 100/375 batches
+Exact held-out mechanics: 110/375 batches
+Exact held-out mechanics: 120/375 batches
+Exact held-out mechanics: 130/375 batches
+Exact held-out mechanics: 140/375 batches
+Exact held-out mechanics: 150/375 batches
+Exact held-out mechanics: 160/375 batches
+Exact held-out mechanics: 170/375 batches
+Exact held-out mechanics: 180/375 batches
+Exact held-out mechanics: 190/375 batches
+Exact held-out mechanics: 200/375 batches
+Exact held-out mechanics: 210/375 batches
+Exact held-out mechanics: 220/375 batches
+Exact held-out mechanics: 230/375 batches
+Exact held-out mechanics: 240/375 batches
+Exact held-out mechanics: 250/375 batches
+Exact held-out mechanics: 260/375 batches
+Exact held-out mechanics: 270/375 batches
+Exact held-out mechanics: 280/375 batches
+Exact held-out mechanics: 290/375 batches
+Exact held-out mechanics: 300/375 batches
+Exact held-out mechanics: 310/375 batches
+Exact held-out mechanics: 320/375 batches
+Exact held-out mechanics: 330/375 batches
+Exact held-out mechanics: 340/375 batches
+Exact held-out mechanics: 350/375 batches
+Exact held-out mechanics: 360/375 batches
+Exact held-out mechanics: 370/375 batches
+Exact held-out mechanics: 375/375 batches
+Held-out first-period default RMSE: 54.069 N*m
+Held-out adapted next-period RMSE: 35.919 N*m
+Mean held-out equilibrium force residual: 0.000025 N
+Saved C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\models\period_adaptive_3d\colliding_hybrid_standard_20260814.npz
+Saved figures to C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\plots\period_adaptive_3d

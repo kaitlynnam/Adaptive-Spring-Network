@@ -1,26 +1,24 @@
-# Active passive-control figures
+# Active figures
 
-All active plots are for the profile-conditioned passive controller using
-`topologies/spatial/internal_fan_3d_60_spring.json`.
+`period_adaptive_3d/` contains figures and interactive HTML for the causal
+one-period-buffer controller. Non-period-controller figures are archived under
+`../archive/non_period_buffer_20260811/artifacts/plots/` or the older archive
+branches.
 
-Currently available from the exact-mechanics seed-101 checkpoint:
+The bounded-extended checkpoint is the current broad-evaluation reference.
 
-- `profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_torque_angle.png`
-- `profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_time_traces.png`
-- `profile_conditioned_passive_3d/profile_passive_3d_60spring_seed101_stiffness_heatmap.png`
+Main outputs use concise stable names:
 
-## Required paper set
+- `fig01_topology.png`
+- `fig02_causal_period_pipeline.png`
+- `fig04a_deployment_torque_time.png`
+- `fig04b_deployment_torque_angle.png`
+- `fig04c_deployment_stiffness.png`
+- `fig05a_many_profile_benchmark.png`
+- `fig05b_many_profile_examples.png`
+- `fig07_training_convergence.png`
+- `interactive_simulation.html`
 
-1. 60-spring 3D topology and labeled joint geometry.
-2. Profile-to-fixed-stiffness passive-control pipeline.
-3. Representative held-out torque-angle behavior.
-4. Representative held-out time traces.
-5. Per-spring stiffness allocation for representative profiles.
-6. Aggregate held-out performance by roughness family and seed.
-7. Training and mechanics-correction convergence.
-8. Multi-seed robustness summary.
-
-Items 3–5 are available. Items 6 and 8 must wait for the running seed-202 and
-seed-303 jobs. Figures are intentionally not regenerated during those runs.
-Figures belonging to the former 24-, 30-, 48-, and 56-spring pipelines are
-stored under `archive/timestep_adaptation/artifacts/plots/`.
+Figure 3 was retired because the held-out examples duplicated the clearer
+multi-period deployment behavior in Figure 4. Figure 6 remains reserved for
+the final mechanical-convergence output.

@@ -1,4 +1,4 @@
-"""Render the genuine spatial internal-fan topology as a compact joint assembly."""
+"""Render the active split-skin 60-spring topology."""
 
 from pathlib import Path
 import sys
@@ -23,7 +23,7 @@ TOPOLOGY_PATH = (
     PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
 )
 OUTPUT_PATH = (
-    PROJECT_ROOT / "plots" / "profile_conditioned_passive_3d" / "hybrid_internal_skin_3d_60_spring_rest.png"
+    PROJECT_ROOT / "plots" / "period_adaptive_3d" / "fig01_topology.png"
 )
 TYPE_COLOR = {
     "fixed": "#343a40",

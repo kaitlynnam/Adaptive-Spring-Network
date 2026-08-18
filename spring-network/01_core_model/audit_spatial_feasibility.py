@@ -38,8 +38,21 @@ def segment_distance(p0, p1, q0, q1):
     return float(np.linalg.norm(w + s * u - t * v))
 
 
-def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
+def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu",
+          rest_length_scale=None):
     topology = load_spatial_topology(topology_path, device)
+    configured_rest_length_scale = float(
+        topology["data"].get("rest_length_scale", 1.0)
+    )
+    active_rest_length_scale = (
+        configured_rest_length_scale
+        if rest_length_scale is None else float(rest_length_scale)
+    )
+    if active_rest_length_scale <= 0.0:
+        raise ValueError("rest_length_scale must be positive")
+    topology["rest_lengths"] *= (
+        active_rest_length_scale / configured_rest_length_scale
+    )
     theta = torch.linspace(
         -np.pi / 4, np.pi / 4, angle_samples,
         dtype=torch.float32, device=topology["local_positions"].device,
@@ -64,6 +77,8 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
     minimum_bearing_radius = np.inf
     bearing_intersections = 0
     bearing_intersection_examples = []
+    bearing_collision_counts = np.zeros(len(topology["spring_a"]), dtype=int)
+    bearing_collision_angles = []
     limb_intersections = 0
     limb_intersection_examples = []
     minimum_spring_length = np.inf
@@ -77,6 +92,8 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
     spring_clearance_examples = []
     minimum_spring_to_spring_clearance = np.inf
     spring_collision_counts = np.zeros(len(spring_a), dtype=int)
+    spring_pair_collision_counts = {}
+    spring_collision_angles = []
     support_radius = float(topology["data"].get("support_radius", 0.012))
     spring_radius = float(topology["data"].get("spring_radius", 0.015))
     spring_support_violations = 0
@@ -173,6 +190,11 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
                     spring_clearance_violations += 1
                     spring_collision_counts[first] += 1
                     spring_collision_counts[second] += 1
+                    pair = (first, second)
+                    spring_pair_collision_counts[pair] = (
+                        spring_pair_collision_counts.get(pair, 0) + 1
+                    )
+                    spring_collision_angles.append(float(np.degrees(angle)))
                     if len(spring_clearance_examples) < 16:
                         spring_clearance_examples.append({
                             "angle_degrees": float(np.degrees(angle)),
@@ -219,9 +241,13 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
             if np.any(within_bearing_length):
                 local_minimum = float(np.min(radial[within_bearing_length]))
                 minimum_bearing_radius = min(minimum_bearing_radius, local_minimum)
-                bearing_intersections += int(
+                bearing_violation = (
                     local_minimum < bearing_required_centerline_radius
                 )
+                bearing_intersections += int(bearing_violation)
+                if bearing_violation:
+                    bearing_collision_counts[spring_index] += 1
+                    bearing_collision_angles.append(float(np.degrees(angle)))
                 if (
                     local_minimum < bearing_required_centerline_radius
                     and len(bearing_intersection_examples) < 20
@@ -363,7 +389,6 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
         and internal_nodes_constrained
         and fixed_to_fixed_springs == 0
         and same_rigid_body_springs == 0
-        and skin_to_skin_springs == 0
         and lateral_anchor_banks
         and limb_nodes_supported
         and finite
@@ -380,6 +405,8 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
         "angles_degrees": [-45.0, 45.0],
         "angle_samples": angle_samples,
         "relaxation_steps": relaxation_steps,
+        "rest_length_scale": active_rest_length_scale,
+        "nominal_preload_fraction": 1.0 - active_rest_length_scale,
         "all_nodes_used": all_nodes_used,
         "spring_graph_connected": connected,
         "internal_spring_degrees": internal_degrees,
@@ -396,6 +423,20 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
         "finite_relaxed_geometry": finite,
         "bearing_intersections": bearing_intersections,
         "bearing_intersection_examples": bearing_intersection_examples,
+        "bearing_violation_angle_range_degrees": (
+            [min(bearing_collision_angles), max(bearing_collision_angles)]
+            if bearing_collision_angles else None
+        ),
+        "worst_bearing_collision_counts": [
+            {
+                "spring_index": int(index),
+                "node_a": topology["names"][int(spring_a[index])],
+                "node_b": topology["names"][int(spring_b[index])],
+                "collision_states": int(bearing_collision_counts[index]),
+            }
+            for index in np.argsort(bearing_collision_counts)[::-1][:12]
+            if bearing_collision_counts[index] > 0
+        ],
         "limb_intersections": limb_intersections,
         "limb_intersection_examples": limb_intersection_examples,
         "minimum_bearing_centerline_radius_m": minimum_bearing_radius,
@@ -410,6 +451,29 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
         "minimum_spring_to_spring_clearance_m": minimum_spring_to_spring_clearance,
         "spring_to_spring_clearance_violations": spring_clearance_violations,
         "spring_to_spring_clearance_examples": spring_clearance_examples,
+        "spring_collision_angle_range_degrees": (
+            [min(spring_collision_angles), max(spring_collision_angles)]
+            if spring_collision_angles else None
+        ),
+        "worst_spring_pair_collision_counts": [
+            {
+                "spring_a": int(pair[0]),
+                "spring_b": int(pair[1]),
+                "spring_a_endpoints": [
+                    topology["names"][int(spring_a[pair[0]])],
+                    topology["names"][int(spring_b[pair[0]])],
+                ],
+                "spring_b_endpoints": [
+                    topology["names"][int(spring_a[pair[1]])],
+                    topology["names"][int(spring_b[pair[1]])],
+                ],
+                "collision_states": int(count),
+            }
+            for pair, count in sorted(
+                spring_pair_collision_counts.items(),
+                key=lambda item: item[1], reverse=True,
+            )[:12]
+        ],
         "worst_spring_collision_counts": [
             {"spring_index": int(index), "collision_states": int(spring_collision_counts[index])}
             for index in np.argsort(spring_collision_counts)[::-1][:12]
@@ -420,8 +484,10 @@ def audit(topology_path, relaxation_steps=300, angle_samples=19, device="cpu"):
         "spring_to_support_clearance_violations": spring_support_violations,
         "spring_to_support_clearance_examples": spring_support_examples,
         "scope": (
-            "ideal centerline topology; excludes fastener design, spring diameter, "
-            "self-collision, fatigue, and structural stress"
+            "post-relaxation diagnostic only; checks configured spring-radius "
+            "clearance against other springs, supports, limbs, and the bearing, "
+            "but excludes collision response, fastener design, deformation, "
+            "friction, fatigue, and structural stress"
         ),
     }
 
@@ -431,6 +497,10 @@ def main():
     parser.add_argument("--topology", type=Path, default=DEFAULT_TOPOLOGY)
     parser.add_argument("--relaxation-steps", type=int, default=300)
     parser.add_argument("--angle-samples", type=int, default=19)
+    parser.add_argument(
+        "--rest-length-scale", type=float,
+        help="Optional diagnostic override for rest length / initial geometric length.",
+    )
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument(
         "--output",
@@ -439,7 +509,8 @@ def main():
     )
     args = parser.parse_args()
     report = audit(
-        args.topology, args.relaxation_steps, args.angle_samples, args.device
+        args.topology, args.relaxation_steps, args.angle_samples, args.device,
+        args.rest_length_scale,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")

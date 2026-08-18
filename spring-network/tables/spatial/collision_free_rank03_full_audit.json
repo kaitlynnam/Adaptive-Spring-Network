@@ -1,0 +1,117 @@
+{
+  "passed": true,
+  "joint_axis": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "angles_degrees": [
+    -45.0,
+    45.0
+  ],
+  "angle_samples": 19,
+  "relaxation_steps": 300,
+  "rest_length_scale": 0.78,
+  "nominal_preload_fraction": 0.21999999999999997,
+  "all_nodes_used": true,
+  "spring_graph_connected": true,
+  "internal_spring_degrees": {
+    "internal_00": 4,
+    "internal_01": 4,
+    "internal_02": 4,
+    "internal_03": 4,
+    "internal_04": 4,
+    "internal_05": 4,
+    "internal_06": 4,
+    "internal_07": 4,
+    "internal_08": 4,
+    "internal_09": 4,
+    "internal_10": 4,
+    "internal_11": 4
+  },
+  "all_internal_nodes_have_at_least_three_springs": true,
+  "fixed_to_fixed_springs": 0,
+  "same_rigid_body_springs": 0,
+  "skin_to_skin_springs": 12,
+  "lateral_anchor_banks": true,
+  "split_skin_circumferential_coverage": true,
+  "all_limb_nodes_rigidly_supported": true,
+  "maximum_limb_standoff_length_m": 1.8976172577733763e-09,
+  "finite_relaxed_geometry": true,
+  "bearing_intersections": 0,
+  "bearing_intersection_examples": [],
+  "bearing_violation_angle_range_degrees": null,
+  "worst_bearing_collision_counts": [],
+  "limb_intersections": 0,
+  "limb_intersection_examples": [],
+  "minimum_bearing_centerline_radius_m": 0.20103691853724026,
+  "bearing_radius_m": 0.12,
+  "required_bearing_centerline_radius_m": 0.145,
+  "minimum_spring_length_m": 0.10453957319259644,
+  "skin_radius_m": 0.74,
+  "joint_boot_radius_m": 0.9,
+  "skin_centerline_containment_violations": 0,
+  "skin_centerline_containment_examples": [],
+  "required_spring_to_spring_clearance_m": 0.012,
+  "minimum_spring_to_spring_clearance_m": 0.03676733002066612,
+  "spring_to_spring_clearance_violations": 0,
+  "spring_to_spring_clearance_examples": [],
+  "spring_collision_angle_range_degrees": null,
+  "worst_spring_pair_collision_counts": [],
+  "worst_spring_collision_counts": [
+    {
+      "spring_index": 59,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 58,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 27,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 26,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 25,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 24,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 23,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 22,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 21,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 20,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 19,
+      "collision_states": 0
+    },
+    {
+      "spring_index": 18,
+      "collision_states": 0
+    }
+  ],
+  "support_radius_m": 0.003,
+  "required_spring_to_support_clearance_m": 0.008,
+  "minimum_spring_to_support_clearance_m": Infinity,
+  "spring_to_support_clearance_violations": 0,
+  "spring_to_support_clearance_examples": [],
+  "scope": "post-relaxation diagnostic only; checks configured spring-radius clearance against other springs, supports, limbs, and the bearing, but excludes collision response, fastener design, deformation, friction, fatigue, and structural stress"
+}

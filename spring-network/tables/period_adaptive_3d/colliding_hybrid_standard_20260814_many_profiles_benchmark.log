@@ -1,0 +1,20 @@
+Completed deployment period 1/10
+Completed deployment period 2/10
+Completed deployment period 3/10
+Completed deployment period 4/10
+Completed deployment period 5/10
+Completed deployment period 6/10
+Completed deployment period 7/10
+Completed deployment period 8/10
+Completed deployment period 9/10
+Completed deployment period 10/10
+Profiles: 100 | periods/profile: 10
+Default period mean RMSE: 51.242 N*m
+Settled period mean RMSE: 32.478 N*m
+Settled RMSE p50/p90/p95: [32.67206353 46.60822577 49.40537267]
+Settled mean profile offload: 38.316%
+Settled aggregate motor-work offload: 40.266%
+Settled offload p05/p50/p95: [ 2.48415959 41.05091862 69.16412765]
+Negative-offload profiles: 3.00%
+Saved C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\tables\period_adaptive_3d\colliding_hybrid_standard_20260814_many_profiles.csv
+Saved C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\tables\period_adaptive_3d\colliding_hybrid_standard_20260814_many_profiles_per_period.csv, C:\Users\kn109\Code\adaptive-Spring-Network\spring-network\tables\period_adaptive_3d\colliding_hybrid_standard_20260814_many_profiles_summary.csv, and complete compressed arrays

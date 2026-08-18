@@ -16,15 +16,15 @@ sys.path.insert(0, str(PROJECT_ROOT / "01_core_model"))
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from adaptive_model import ANGLE_DEGREES
-from benchmark_profile_passive_3d import spatial_initial_basis
 from mechanics_3d import load_spatial_topology
+from period_adaptive_support import figure_path, spatial_initial_basis
 from profile_generator import generate_profile_parameters
 from train_period_adaptive_3d import (
     DEFAULT_TOPOLOGY, build_period_dataset, exact_period_torque,
 )
 
 DEFAULT_CHECKPOINT = (
-    PROJECT_ROOT / "models" / "period_adaptive_3d" / "period_adaptive_3d_60spring.npz"
+    PROJECT_ROOT / "models" / "period_adaptive_3d" / "period_adaptive_3d_60spring_bounded_extended.npz"
 )
 
 
@@ -119,7 +119,7 @@ def save_figures(output_dir, name, dataset, torque, stiffness):
     ax.grid(alpha=0.2)
     ax.legend(fontsize=8, ncol=2)
     fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_deployment_torque_time.png", dpi=180)
+    fig.savefig(figure_path(output_dir, name, "fig04a_deployment_torque_time.png"), dpi=180)
     plt.close(fig)
 
     fig, axes = plt.subplots(periods, 1, figsize=(7.5, max(3.2, 2.8 * periods)), squeeze=False)
@@ -132,7 +132,7 @@ def save_figures(output_dir, name, dataset, torque, stiffness):
         ax.grid(alpha=0.2)
         ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_deployment_torque_angle.png", dpi=180)
+    fig.savefig(figure_path(output_dir, name, "fig04b_deployment_torque_angle.png"), dpi=180)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(10, max(3, 0.55 * periods)))
@@ -141,7 +141,7 @@ def save_figures(output_dir, name, dataset, torque, stiffness):
     ax.set_yticks(np.arange(periods), [f"{i + 1}{' default' if i == 0 else ''}" for i in range(periods)])
     fig.colorbar(image, ax=ax, label="Stiffness [N/m]")
     fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_deployment_stiffness.png", dpi=180)
+    fig.savefig(figure_path(output_dir, name, "fig04c_deployment_stiffness.png"), dpi=180)
     plt.close(fig)
 
 
@@ -156,7 +156,7 @@ def main():
     parser.add_argument("--mechanics-progress-interval", type=int, default=10)
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--seed", type=int, default=501)
-    parser.add_argument("--output-name", default="period_adaptive_3d_60spring")
+    parser.add_argument("--output-name", default="period_adaptive_3d_60spring_bounded_extended")
     args = parser.parse_args()
     if args.periods < 1:
         parser.error("--periods must be positive")

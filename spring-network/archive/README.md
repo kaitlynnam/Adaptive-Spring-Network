@@ -1,7 +1,14 @@
 # Archive
 
 This directory preserves research branches that are no longer part of the
-active profile-conditioned passive workflow.
+active causal one-period-buffer workflow.
+
+- `non_period_buffer_20260811/` — former profile-conditioned passive source,
+  root runners, tests, documentation, models, plots, tables, and logs moved out
+  of the active tree during the period-controller cleanup.
+- `period_buffer_experiments_20260811/` — intermediate period-controller
+  checkpoints, ablations, tuning runs, figures, and tables superseded by the
+  bounded-extended main model.
 
 - `timestep_adaptation/` — the complete former causal timestep-adaptive,
   preload, trajectory-evaluation, spatial-search result, and paper-artifact

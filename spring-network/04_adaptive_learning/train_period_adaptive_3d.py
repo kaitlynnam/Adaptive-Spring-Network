@@ -22,11 +22,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "01_core_model"))
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from adaptive_model import ANGLE_DEGREES, save_model
-from benchmark_profile_passive_3d import spatial_initial_basis
 from mechanics_3d import load_spatial_topology, torque_and_residual, torque_components
-from passive_mechanics import generate_motion_trajectory, interpolate_basis
+from period_adaptive_support import (
+    figure_path, generate_motion_trajectory, initialize_period_model, interpolate_basis,
+    spatial_initial_basis,
+)
 from profile_generator import DEFAULT_TORQUE_LIMIT_NM, generate_profile_parameters
-from train_profile_conditioned_passive import initialize_unbounded_model
 
 DEFAULT_TOPOLOGY = (
     PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
@@ -135,7 +136,8 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
                        observation_variants=4, observation_stiffness_log_std=0.7,
                        training_mode="closed_loop", training_periods=6,
                        initial_stiffness_log_std=0.7, stiffness_lower=None,
-                       stiffness_upper=None, stiffness_order_weight=0.1):
+                       stiffness_upper=None, stiffness_order_weight=0.1,
+                       objective="torque_mse"):
     """Learn completed-period data -> stiffness that fits that same period.
 
     The first-period/default policy belongs to deployment and is deliberately
@@ -147,7 +149,7 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
     initial_k = np.asarray(initial_k, dtype=float)
     input_dim = dataset["samples_per_period"] * 6
     model = (
-        initialize_unbounded_model(
+        initialize_period_model(
             np.random.default_rng(seed), input_dim, hidden_dim,
             dataset["basis"].shape[2], initial_k, min_k,
         )
@@ -175,6 +177,8 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
         raise ValueError("closed-loop training requires at least two periods")
     if observation_variants < 1:
         raise ValueError("observation_variants must be at least one")
+    if objective not in {"torque_mse", "motor_work"}:
+        raise ValueError("objective must be torque_mse or motor_work")
     profile_count, sample_count, spring_count = data["basis"].shape
     generator = torch.Generator(device=torch_device).manual_seed(seed + 31_337)
     variant_count = observation_variants if training_mode == "independent" else 1
@@ -230,14 +234,17 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
                 detach_buffer=True, stiffness_lower=lower_tensor,
                 stiffness_upper=upper_tensor,
             )
-            torque_mse = torch.mean(
-                (torque[:, 1:, :] - data["target"][:, None, :]) ** 2
+            residual = torque[:, 1:, :] - data["target"][:, None, :]
+            torque_mse = torch.mean(residual**2)
+            primary_loss = (
+                torque_mse if objective == "torque_mse" else
+                torch.mean(torch.abs(residual * data["theta_dot"][:, None, :]))
             )
             order_change = torch.log10(
                 torch.clamp(rollout_stiffness[:, 1:, :], min=1e-9)
                 / torch.clamp(base[None, None, :], min=1e-9)
             )
-            loss = torque_mse + stiffness_order_weight * torque_mse.detach() * torch.mean(
+            loss = primary_loss + stiffness_order_weight * primary_loss.detach() * torch.mean(
                 order_change**2
             )
         else:
@@ -251,11 +258,17 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
             else:
                 stiffness = min_k + torch.nn.functional.softplus(logits)
             torque = torch.sum(expanded_basis * stiffness[:, None, :], dim=2)
-            loss = torch.mean((torque - expanded["target"]) ** 2)
+            residual = torque - expanded["target"]
+            torque_mse = torch.mean(residual**2)
+            primary_loss = (
+                torque_mse if objective == "torque_mse" else
+                torch.mean(torch.abs(residual * expanded["theta_dot"]))
+            )
+            loss = primary_loss
         loss.backward()
         optimizer.step()
         value = float(loss.detach().cpu())
-        rmse = value ** 0.5
+        rmse = float(torch.sqrt(torque_mse.detach()).cpu())
         history.append((iteration, rmse, value))
         if value < best_loss:
             best_loss = value
@@ -264,7 +277,11 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
         if progress_interval and (iteration == 1 or iteration == iterations
                                   or iteration % progress_interval == 0):
             label = "closed-loop adapted" if training_mode == "closed_loop" else "period-fit"
-            print(f"iteration {iteration:5d} | {label} RMSE {rmse:8.3f} N*m")
+            suffix = (
+                f"RMSE {rmse:8.3f} N*m" if objective == "torque_mse" else
+                f"motor-work proxy {value:8.3f} W | RMSE {rmse:8.3f} N*m"
+            )
+            print(f"iteration {iteration:5d} | {label} {suffix}")
     return best_model, history, scales
 
 
@@ -391,7 +408,7 @@ def exact_period_torque(dataset, topology, stiffness, relaxation_steps,
 
 def save_period_figures(output_dir, name, dataset, torque, stiffness, history,
                         example_count=3):
-    """Write convergence, time, torque-angle, and stiffness-schedule figures."""
+    """Write the training-convergence figure for the main paper set."""
     output_dir.mkdir(parents=True, exist_ok=True)
     iterations = np.asarray([row[0] for row in history])
     rmse = np.asarray([row[1] for row in history])
@@ -401,60 +418,7 @@ def save_period_figures(output_dir, name, dataset, torque, stiffness, history,
            title="Period-adaptive training convergence")
     ax.grid(alpha=0.25)
     fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_training_convergence.png", dpi=180)
-    plt.close(fig)
-
-    count = min(example_count, len(torque))
-    periods = torque.shape[1]
-    period_seconds = dataset["period_seconds"]
-    base_t = dataset["t"] - dataset["t"][:, :1]
-    colors = ["#888888"] + [plt.cm.viridis(x) for x in np.linspace(0.25, 0.9, max(periods - 1, 1))]
-
-    fig, axes = plt.subplots(count, 1, figsize=(9, 3.2 * count), squeeze=False)
-    for profile_index, ax in enumerate(axes[:, 0]):
-        for period_index in range(periods):
-            time = base_t[profile_index] + period_index * period_seconds
-            target = dataset["target"][profile_index]
-            label_suffix = "default" if period_index == 0 else "adapted"
-            ax.plot(time, target, "k--", alpha=0.75,
-                    label="target" if period_index == 0 else None)
-            ax.plot(time, torque[profile_index, period_index], color=colors[period_index],
-                    linewidth=2, label=f"spring, period {period_index + 1} ({label_suffix})")
-            if period_index:
-                ax.axvline(period_index * period_seconds, color="0.8", linewidth=0.8)
-        ax.set(ylabel="Torque [N m]", title=f"Held-out trajectory {profile_index + 1}")
-        ax.grid(alpha=0.2)
-        ax.legend(fontsize=8, ncol=2)
-    axes[-1, 0].set_xlabel("Time [s]")
-    fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_torque_time.png", dpi=180)
-    plt.close(fig)
-
-    fig, axes = plt.subplots(count, 1, figsize=(7.5, 3.4 * count), squeeze=False)
-    for profile_index, ax in enumerate(axes[:, 0]):
-        angle = np.degrees(dataset["theta"][profile_index])
-        ax.plot(angle, dataset["target"][profile_index], "k--", linewidth=2, label="target")
-        for period_index in range(periods):
-            label_suffix = "default" if period_index == 0 else "adapted"
-            ax.plot(angle, torque[profile_index, period_index], color=colors[period_index],
-                    linewidth=1.8, label=f"period {period_index + 1} ({label_suffix})")
-        ax.set(xlabel="Joint angle [deg]", ylabel="Torque [N m]",
-               title=f"Held-out torque-angle profile {profile_index + 1}")
-        ax.grid(alpha=0.2)
-        ax.legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_torque_angle.png", dpi=180)
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(10, max(2.8, 0.7 * periods)))
-    image = ax.imshow(stiffness[0], aspect="auto", cmap="viridis")
-    ax.set(xlabel="Spring index", ylabel="Period",
-           title="Once-per-period stiffness schedule (held-out trajectory 1)")
-    ax.set_yticks(np.arange(periods), [f"{i + 1}{' default' if i == 0 else ' adapted'}"
-                                      for i in range(periods)])
-    fig.colorbar(image, ax=ax, label="Stiffness [N/m]")
-    fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_stiffness_schedule.png", dpi=180)
+    fig.savefig(figure_path(output_dir, name, "fig07_training_convergence.png"), dpi=180)
     plt.close(fig)
 
 
@@ -492,6 +456,11 @@ def main():
         "--stiffness-order-weight", type=float, default=0.1,
         help="Soft penalty on squared log10 stiffness change from topology values.",
     )
+    parser.add_argument(
+        "--objective", choices=["torque_mse", "motor_work"], default="torque_mse",
+        help=("Training objective. motor_work minimizes mean absolute residual "
+              "torque times angular velocity, matching the benchmark numerator."),
+    )
     parser.add_argument("--relaxation-steps", type=int, default=300)
     parser.add_argument("--mechanics-batch-size", type=int, default=1024)
     parser.add_argument("--mechanics-progress-interval", type=int, default=10)
@@ -511,7 +480,7 @@ def main():
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--seed", type=int, default=101)
     parser.add_argument("--progress-interval", type=int, default=100)
-    parser.add_argument("--output-name", default="period_adaptive_3d_60spring")
+    parser.add_argument("--output-name", default="period_adaptive_3d_60spring_bounded_extended")
     parser.add_argument(
         "--resume-checkpoint", type=Path,
         help="Continue training from an existing period-adaptive .npz checkpoint.",
@@ -582,6 +551,7 @@ def main():
             args.observation_stiffness_log_std, args.training_mode,
             args.training_periods, args.initial_stiffness_log_std,
             stiffness_lower, stiffness_upper, args.stiffness_order_weight,
+            args.objective,
         )
         history.extend((completed + i, rmse, loss) for i, rmse, loss in phase_history)
         completed += count
@@ -634,6 +604,7 @@ def main():
                stiffness_upper_bound=stiffness_upper,
                stiffness_parameterization="clipped_positive_softplus",
                stiffness_order_weight=args.stiffness_order_weight,
+               training_objective=args.objective,
                mechanics_refreshes=args.mechanics_refreshes,
                training_mode=args.training_mode, training_periods=args.training_periods,
                initial_stiffness_log_std=args.initial_stiffness_log_std,

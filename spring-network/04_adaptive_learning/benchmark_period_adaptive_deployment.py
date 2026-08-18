@@ -16,13 +16,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "01_core_model"))
 sys.path.insert(0, str(PROJECT_ROOT / "04_adaptive_learning"))
 
 from adaptive_model import ANGLE_DEGREES
-from benchmark_profile_passive_3d import spatial_initial_basis
 from deploy_period_adaptive_3d import controller_step, load_checkpoint
 from mechanics_3d import load_spatial_topology
+from period_adaptive_support import figure_path, spatial_initial_basis
 from profile_generator import generate_profile_parameters
 from train_period_adaptive_3d import DEFAULT_TOPOLOGY, build_period_dataset, exact_period_torque
 
-DEFAULT_CHECKPOINT = PROJECT_ROOT / "models" / "period_adaptive_3d" / "period_adaptive_3d_60spring.npz"
+DEFAULT_CHECKPOINT = PROJECT_ROOT / "models" / "period_adaptive_3d" / "period_adaptive_3d_60spring_bounded_extended.npz"
 
 
 def save_benchmark_figures(output_dir, name, dataset, torque, rmse, offload):
@@ -65,7 +65,7 @@ def save_benchmark_figures(output_dir, name, dataset, torque, rmse, offload):
     for ax in axes.flat:
         ax.grid(alpha=0.2)
     fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_benchmark_summary.png", dpi=200)
+    fig.savefig(figure_path(output_dir, name, "fig05a_many_profile_benchmark.png"), dpi=200)
     plt.close(fig)
 
     order = np.argsort(settled_offload)
@@ -86,7 +86,7 @@ def save_benchmark_figures(output_dir, name, dataset, torque, rmse, offload):
         ax.grid(alpha=0.2)
         ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(output_dir / f"{name}_torque_angle_examples.png", dpi=200)
+    fig.savefig(figure_path(output_dir, name, "fig05b_many_profile_examples.png"), dpi=200)
     plt.close(fig)
 
 
@@ -111,7 +111,7 @@ def main():
     parser.add_argument("--seed", type=int, default=901)
     parser.add_argument("--constraint-min-order", type=float)
     parser.add_argument("--constraint-max-order", type=float)
-    parser.add_argument("--output-name", default="period_adaptive_3d_60spring_many_profiles")
+    parser.add_argument("--output-name", default="period_adaptive_3d_60spring_bounded_extended_many_profiles")
     args = parser.parse_args()
     if args.profiles < 1 or args.periods < 2:
         parser.error("profiles must be positive and periods must be at least two")

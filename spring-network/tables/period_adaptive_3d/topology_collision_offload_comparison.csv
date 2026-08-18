@@ -1,0 +1,9 @@
+topology,collision_status,training_iterations,mechanics_refreshes,default_mean_rmse_nm,settled_mean_rmse_nm,settled_aggregate_offload_pct,negative_offload_profile_pct
+original_60spring,322_spring_clearance_and_195_bearing_violations,4000,2,52.9155,28.3257,52.1720,2.0
+paired_internal_collision_free,zero_audited_violations,1334,0,52.5222,49.1102,6.8765,13.5
+refined_outer_lane_collision_free_rank03,zero_audited_violations,1334,0,57.7328,46.6569,13.9120,31.5
+expanded_outer_lane_collision_free_refreshed,zero_audited_violations,4000,2,54.3250,39.1160,28.9110,9.0
+helical_outer_lane_shift_minus1_refreshed,zero_audited_violations,4000,2,55.1880,39.9480,27.0950,6.5
+expanded_collision_free_motor_work_loss,zero_audited_violations,4000,2,55.8090,40.8460,27.2690,9.0
+expanded_collision_free_10to1_turndown,zero_audited_violations,4000,2,55.8090,36.0620,34.8630,0.0
+expanded_collision_free_100to1_turndown,zero_audited_violations,4000,2,55.8090,36.0210,34.9280,0.0

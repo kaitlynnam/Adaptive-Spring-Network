@@ -1,0 +1,4 @@
+spring_count,collision_audit,minimum_spring_clearance_m,bounded_fit_rmse_nm,shortened_default_rmse_nm,shortened_adapted_exact_rmse_nm,training_iterations,mechanics_refreshes
+60,pass,0.0349139,11.661,57.729,46.521,1334,0
+70,pass,0.0292880,10.909,60.138,46.604,1334,0
+80,pass,0.0267526,11.271,62.195,47.658,1334,0

@@ -1,0 +1,1234 @@
+{
+  "joint_axis": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "bearing_radius": 0.12,
+  "bearing_half_length": 0.13,
+  "bearing_clearance": 0.02,
+  "bearing_collision_penalty": 0.0,
+  "rest_angle_degrees": 0.0,
+  "rest_length_scale": 0.78,
+  "name": "collision_free_80s_authority_candidate_0048",
+  "description": "16 routed lanes with internal support and outer cross-joint torque springs.",
+  "skin_radius": 0.74,
+  "joint_boot_radius": 0.9,
+  "spring_clearance": 0.012,
+  "spring_radius": 0.005,
+  "support_radius": 0.003,
+  "joint_nodes_on_limb_surface": true,
+  "search_parameters": {
+    "phase": 0.17516636748323633,
+    "distal_offset": -0.07051711853433458,
+    "internal_offset": 0.0569683552661798,
+    "skin_x": 0.2400604025644327,
+    "limb_x": 0.5547148943542343,
+    "internal_x": 0.06101179039727864,
+    "internal_radius": 0.5906123128518121
+  },
+  "nodes": [
+    {
+      "name": "skin1_00",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.7286761939150821,
+        0.1289612516278814
+      ]
+    },
+    {
+      "name": "limb1_00",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.05198106819451738,
+        0.009199619352598793
+      ]
+    },
+    {
+      "name": "internal_00",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.5747706188453953,
+        0.13587361702791384
+      ]
+    },
+    {
+      "name": "limb2_00",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.049992294442006334,
+        0.005250838199927622
+      ]
+    },
+    {
+      "name": "skin2_00",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.7359516544705227,
+        0.07729917387721855
+      ]
+    },
+    {
+      "name": "skin1_01",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.623857686971314,
+        0.39799696783619076
+      ]
+    },
+    {
+      "name": "limb1_01",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.05198106819451738,
+        0.03316190207856724
+      ]
+    },
+    {
+      "name": "internal_01",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.47902222850800497,
+        0.3454860470227293
+      ]
+    },
+    {
+      "name": "limb2_01",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.049992294442006334,
+        0.02713903751080178
+      ]
+    },
+    {
+      "name": "skin2_01",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.6503495573048146,
+        0.3530516298127395
+      ]
+    },
+    {
+      "name": "skin1_02",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.42406250247017857,
+        0.6064412535429378
+      ]
+    },
+    {
+      "name": "limb1_02",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.05198106819451738,
+        0.07433683471837005
+      ]
+    },
+    {
+      "name": "internal_02",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.3103470462275855,
+        0.5025013581971493
+      ]
+    },
+    {
+      "name": "limb2_02",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.04999229444200634,
+        0.06172644309992316
+      ]
+    },
+    {
+      "name": "skin2_02",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.4657376354728663,
+        0.5750551755302648
+      ]
+    },
+    {
+      "name": "skin1_03",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.15970764610411595,
+        0.7225603558014254
+      ]
+    },
+    {
+      "name": "limb1_03",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.01778665280631327,
+        0.08047160229177606
+      ]
+    },
+    {
+      "name": "internal_03",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.09442433946199608,
+        0.5830153927722085
+      ]
+    },
+    {
+      "name": "limb2_03",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.022959065034775933,
+        0.0774884416630095
+      ]
+    },
+    {
+      "name": "skin2_03",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.2102213805623529,
+        0.7095117836614543
+      ]
+    },
+    {
+      "name": "skin1_04",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.12896125162788127,
+        0.7286761939150821
+      ]
+    },
+    {
+      "name": "limb1_04",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.01424187950520298,
+        0.08047160229177606
+      ]
+    },
+    {
+      "name": "internal_04",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.1358736170279137,
+        0.5747706188453953
+      ]
+    },
+    {
+      "name": "limb2_04",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.008138839676762467,
+        0.0774884416630095
+      ]
+    },
+    {
+      "name": "skin2_04",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.07729917387721846,
+        0.7359516544705227
+      ]
+    },
+    {
+      "name": "skin1_05",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.3979969678361907,
+        0.6238576869713142
+      ]
+    },
+    {
+      "name": "limb1_05",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.05133775599453245,
+        0.08047160229177606
+      ]
+    },
+    {
+      "name": "internal_05",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.3454860470227292,
+        0.47902222850800497
+      ]
+    },
+    {
+      "name": "limb2_05",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.04206571729540309,
+        0.0774884416630095
+      ]
+    },
+    {
+      "name": "skin2_05",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.3530516298127394,
+        0.6503495573048146
+      ]
+    },
+    {
+      "name": "skin1_06",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.6064412535429377,
+        0.4240625024701787
+      ]
+    },
+    {
+      "name": "limb1_06",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.05198106819451738,
+        0.03634848673446872
+      ]
+    },
+    {
+      "name": "internal_06",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.5025013581971493,
+        0.31034704622758563
+      ]
+    },
+    {
+      "name": "limb2_06",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.049992294442006334,
+        0.04048879828585764
+      ]
+    },
+    {
+      "name": "skin2_06",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.5750551755302646,
+        0.4657376354728663
+      ]
+    },
+    {
+      "name": "skin1_07",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.7225603558014254,
+        0.159707646104116
+      ]
+    },
+    {
+      "name": "limb1_07",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.05198106819451738,
+        0.011489384902823816
+      ]
+    },
+    {
+      "name": "internal_07",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.5830153927722085,
+        0.09442433946199599
+      ]
+    },
+    {
+      "name": "limb2_07",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.049992294442006334,
+        0.014812226374654309
+      ]
+    },
+    {
+      "name": "skin2_07",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.7095117836614543,
+        0.21022138056235293
+      ]
+    },
+    {
+      "name": "skin1_08",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.7286761939150821,
+        -0.12896125162788125
+      ]
+    },
+    {
+      "name": "limb1_08",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.05198106819451738,
+        -0.009199619352598781
+      ]
+    },
+    {
+      "name": "internal_08",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.5747706188453953,
+        -0.1358736170279138
+      ]
+    },
+    {
+      "name": "limb2_08",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.049992294442006334,
+        -0.005250838199927613
+      ]
+    },
+    {
+      "name": "skin2_08",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.7359516544705227,
+        -0.07729917387721842
+      ]
+    },
+    {
+      "name": "skin1_09",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.6238576869713142,
+        -0.3979969678361907
+      ]
+    },
+    {
+      "name": "limb1_09",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.05198106819451738,
+        -0.033161902078567236
+      ]
+    },
+    {
+      "name": "internal_09",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.479022228508005,
+        -0.3454860470227292
+      ]
+    },
+    {
+      "name": "limb2_09",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.049992294442006334,
+        -0.027139037510801767
+      ]
+    },
+    {
+      "name": "skin2_09",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.6503495573048147,
+        -0.35305162981273935
+      ]
+    },
+    {
+      "name": "skin1_10",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.4240625024701784,
+        -0.6064412535429379
+      ]
+    },
+    {
+      "name": "limb1_10",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.05198106819451739,
+        -0.07433683471837009
+      ]
+    },
+    {
+      "name": "internal_10",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.31034704622758563,
+        -0.5025013581971493
+      ]
+    },
+    {
+      "name": "limb2_10",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.04999229444200634,
+        -0.06172644309992314
+      ]
+    },
+    {
+      "name": "skin2_10",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.46573763547286634,
+        -0.5750551755302646
+      ]
+    },
+    {
+      "name": "skin1_11",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        -0.15970764610411603,
+        -0.7225603558014254
+      ]
+    },
+    {
+      "name": "limb1_11",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        -0.01778665280631328,
+        -0.08047160229177606
+      ]
+    },
+    {
+      "name": "internal_11",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        -0.09442433946199628,
+        -0.5830153927722085
+      ]
+    },
+    {
+      "name": "limb2_11",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        -0.022959065034775974,
+        -0.0774884416630095
+      ]
+    },
+    {
+      "name": "skin2_11",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        -0.21022138056235326,
+        -0.7095117836614543
+      ]
+    },
+    {
+      "name": "skin1_12",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.12896125162788152,
+        -0.7286761939150821
+      ]
+    },
+    {
+      "name": "limb1_12",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.014241879505203007,
+        -0.08047160229177606
+      ]
+    },
+    {
+      "name": "internal_12",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.13587361702791376,
+        -0.5747706188453953
+      ]
+    },
+    {
+      "name": "limb2_12",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.008138839676762459,
+        -0.0774884416630095
+      ]
+    },
+    {
+      "name": "skin2_12",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.07729917387721838,
+        -0.7359516544705227
+      ]
+    },
+    {
+      "name": "skin1_13",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.3979969678361912,
+        -0.6238576869713138
+      ]
+    },
+    {
+      "name": "limb1_13",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.05133775599453254,
+        -0.08047160229177606
+      ]
+    },
+    {
+      "name": "internal_13",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.3454860470227294,
+        -0.4790222285080049
+      ]
+    },
+    {
+      "name": "limb2_13",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.04206571729540312,
+        -0.0774884416630095
+      ]
+    },
+    {
+      "name": "skin2_13",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.35305162981273963,
+        -0.6503495573048146
+      ]
+    },
+    {
+      "name": "skin1_14",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.6064412535429379,
+        -0.4240625024701785
+      ]
+    },
+    {
+      "name": "limb1_14",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.05198106819451737,
+        -0.036348486734468693
+      ]
+    },
+    {
+      "name": "internal_14",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.5025013581971493,
+        -0.3103470462275857
+      ]
+    },
+    {
+      "name": "limb2_14",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.049992294442006334,
+        -0.04048879828585765
+      ]
+    },
+    {
+      "name": "skin2_14",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.5750551755302646,
+        -0.46573763547286634
+      ]
+    },
+    {
+      "name": "skin1_15",
+      "type": "skin1",
+      "position": [
+        -0.2400604025644327,
+        0.7225603558014254,
+        -0.1597076461041161
+      ]
+    },
+    {
+      "name": "limb1_15",
+      "type": "limb1",
+      "position": [
+        -0.5547148943542343,
+        0.05198106819451738,
+        -0.011489384902823824
+      ]
+    },
+    {
+      "name": "internal_15",
+      "type": "internal",
+      "position": [
+        0.06101179039727864,
+        0.5830153927722085,
+        -0.09442433946199633
+      ]
+    },
+    {
+      "name": "limb2_15",
+      "type": "limb2",
+      "position": [
+        0.5547148943542343,
+        0.049992294442006334,
+        -0.014812226374654337
+      ]
+    },
+    {
+      "name": "skin2_15",
+      "type": "skin2",
+      "position": [
+        0.2400604025644327,
+        0.7095117836614543,
+        -0.21022138056235332
+      ]
+    }
+  ],
+  "springs": [
+    {
+      "name": "skin1_internal_00",
+      "node_a": "skin1_00",
+      "node_b": "internal_00",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "limb1_internal_00",
+      "node_a": "limb1_00",
+      "node_b": "internal_00",
+      "stiffness_k": 99.16666666666667
+    },
+    {
+      "name": "internal_limb2_00",
+      "node_a": "internal_00",
+      "node_b": "limb2_00",
+      "stiffness_k": 74.16666666666667
+    },
+    {
+      "name": "internal_skin2_00",
+      "node_a": "internal_00",
+      "node_b": "skin2_00",
+      "stiffness_k": 103.33333333333334
+    },
+    {
+      "name": "outer_cross_00",
+      "node_a": "skin1_00",
+      "node_b": "skin2_00",
+      "stiffness_k": 78.33333333333333
+    },
+    {
+      "name": "skin1_internal_01",
+      "node_a": "skin1_01",
+      "node_b": "internal_01",
+      "stiffness_k": 107.5
+    },
+    {
+      "name": "limb1_internal_01",
+      "node_a": "limb1_01",
+      "node_b": "internal_01",
+      "stiffness_k": 82.5
+    },
+    {
+      "name": "internal_limb2_01",
+      "node_a": "internal_01",
+      "node_b": "limb2_01",
+      "stiffness_k": 111.66666666666666
+    },
+    {
+      "name": "internal_skin2_01",
+      "node_a": "internal_01",
+      "node_b": "skin2_01",
+      "stiffness_k": 86.66666666666667
+    },
+    {
+      "name": "outer_cross_01",
+      "node_a": "skin1_01",
+      "node_b": "skin2_01",
+      "stiffness_k": 115.83333333333334
+    },
+    {
+      "name": "skin1_internal_02",
+      "node_a": "skin1_02",
+      "node_b": "internal_02",
+      "stiffness_k": 90.83333333333333
+    },
+    {
+      "name": "limb1_internal_02",
+      "node_a": "limb1_02",
+      "node_b": "internal_02",
+      "stiffness_k": 120.0
+    },
+    {
+      "name": "internal_limb2_02",
+      "node_a": "internal_02",
+      "node_b": "limb2_02",
+      "stiffness_k": 95.0
+    },
+    {
+      "name": "internal_skin2_02",
+      "node_a": "internal_02",
+      "node_b": "skin2_02",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "outer_cross_02",
+      "node_a": "skin1_02",
+      "node_b": "skin2_02",
+      "stiffness_k": 99.16666666666667
+    },
+    {
+      "name": "skin1_internal_03",
+      "node_a": "skin1_03",
+      "node_b": "internal_03",
+      "stiffness_k": 74.16666666666667
+    },
+    {
+      "name": "limb1_internal_03",
+      "node_a": "limb1_03",
+      "node_b": "internal_03",
+      "stiffness_k": 103.33333333333334
+    },
+    {
+      "name": "internal_limb2_03",
+      "node_a": "internal_03",
+      "node_b": "limb2_03",
+      "stiffness_k": 78.33333333333333
+    },
+    {
+      "name": "internal_skin2_03",
+      "node_a": "internal_03",
+      "node_b": "skin2_03",
+      "stiffness_k": 107.5
+    },
+    {
+      "name": "outer_cross_03",
+      "node_a": "skin1_03",
+      "node_b": "skin2_03",
+      "stiffness_k": 82.5
+    },
+    {
+      "name": "skin1_internal_04",
+      "node_a": "skin1_04",
+      "node_b": "internal_04",
+      "stiffness_k": 111.66666666666666
+    },
+    {
+      "name": "limb1_internal_04",
+      "node_a": "limb1_04",
+      "node_b": "internal_04",
+      "stiffness_k": 86.66666666666667
+    },
+    {
+      "name": "internal_limb2_04",
+      "node_a": "internal_04",
+      "node_b": "limb2_04",
+      "stiffness_k": 115.83333333333334
+    },
+    {
+      "name": "internal_skin2_04",
+      "node_a": "internal_04",
+      "node_b": "skin2_04",
+      "stiffness_k": 90.83333333333333
+    },
+    {
+      "name": "outer_cross_04",
+      "node_a": "skin1_04",
+      "node_b": "skin2_04",
+      "stiffness_k": 120.0
+    },
+    {
+      "name": "skin1_internal_05",
+      "node_a": "skin1_05",
+      "node_b": "internal_05",
+      "stiffness_k": 95.0
+    },
+    {
+      "name": "limb1_internal_05",
+      "node_a": "limb1_05",
+      "node_b": "internal_05",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "internal_limb2_05",
+      "node_a": "internal_05",
+      "node_b": "limb2_05",
+      "stiffness_k": 99.16666666666667
+    },
+    {
+      "name": "internal_skin2_05",
+      "node_a": "internal_05",
+      "node_b": "skin2_05",
+      "stiffness_k": 74.16666666666667
+    },
+    {
+      "name": "outer_cross_05",
+      "node_a": "skin1_05",
+      "node_b": "skin2_05",
+      "stiffness_k": 103.33333333333334
+    },
+    {
+      "name": "skin1_internal_06",
+      "node_a": "skin1_06",
+      "node_b": "internal_06",
+      "stiffness_k": 78.33333333333333
+    },
+    {
+      "name": "limb1_internal_06",
+      "node_a": "limb1_06",
+      "node_b": "internal_06",
+      "stiffness_k": 107.5
+    },
+    {
+      "name": "internal_limb2_06",
+      "node_a": "internal_06",
+      "node_b": "limb2_06",
+      "stiffness_k": 82.5
+    },
+    {
+      "name": "internal_skin2_06",
+      "node_a": "internal_06",
+      "node_b": "skin2_06",
+      "stiffness_k": 111.66666666666666
+    },
+    {
+      "name": "outer_cross_06",
+      "node_a": "skin1_06",
+      "node_b": "skin2_06",
+      "stiffness_k": 86.66666666666667
+    },
+    {
+      "name": "skin1_internal_07",
+      "node_a": "skin1_07",
+      "node_b": "internal_07",
+      "stiffness_k": 115.83333333333334
+    },
+    {
+      "name": "limb1_internal_07",
+      "node_a": "limb1_07",
+      "node_b": "internal_07",
+      "stiffness_k": 90.83333333333333
+    },
+    {
+      "name": "internal_limb2_07",
+      "node_a": "internal_07",
+      "node_b": "limb2_07",
+      "stiffness_k": 120.0
+    },
+    {
+      "name": "internal_skin2_07",
+      "node_a": "internal_07",
+      "node_b": "skin2_07",
+      "stiffness_k": 95.0
+    },
+    {
+      "name": "outer_cross_07",
+      "node_a": "skin1_07",
+      "node_b": "skin2_07",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "skin1_internal_08",
+      "node_a": "skin1_08",
+      "node_b": "internal_08",
+      "stiffness_k": 99.16666666666667
+    },
+    {
+      "name": "limb1_internal_08",
+      "node_a": "limb1_08",
+      "node_b": "internal_08",
+      "stiffness_k": 74.16666666666667
+    },
+    {
+      "name": "internal_limb2_08",
+      "node_a": "internal_08",
+      "node_b": "limb2_08",
+      "stiffness_k": 103.33333333333334
+    },
+    {
+      "name": "internal_skin2_08",
+      "node_a": "internal_08",
+      "node_b": "skin2_08",
+      "stiffness_k": 78.33333333333333
+    },
+    {
+      "name": "outer_cross_08",
+      "node_a": "skin1_08",
+      "node_b": "skin2_08",
+      "stiffness_k": 107.5
+    },
+    {
+      "name": "skin1_internal_09",
+      "node_a": "skin1_09",
+      "node_b": "internal_09",
+      "stiffness_k": 82.5
+    },
+    {
+      "name": "limb1_internal_09",
+      "node_a": "limb1_09",
+      "node_b": "internal_09",
+      "stiffness_k": 111.66666666666666
+    },
+    {
+      "name": "internal_limb2_09",
+      "node_a": "internal_09",
+      "node_b": "limb2_09",
+      "stiffness_k": 86.66666666666667
+    },
+    {
+      "name": "internal_skin2_09",
+      "node_a": "internal_09",
+      "node_b": "skin2_09",
+      "stiffness_k": 115.83333333333334
+    },
+    {
+      "name": "outer_cross_09",
+      "node_a": "skin1_09",
+      "node_b": "skin2_09",
+      "stiffness_k": 90.83333333333333
+    },
+    {
+      "name": "skin1_internal_10",
+      "node_a": "skin1_10",
+      "node_b": "internal_10",
+      "stiffness_k": 120.0
+    },
+    {
+      "name": "limb1_internal_10",
+      "node_a": "limb1_10",
+      "node_b": "internal_10",
+      "stiffness_k": 95.0
+    },
+    {
+      "name": "internal_limb2_10",
+      "node_a": "internal_10",
+      "node_b": "limb2_10",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "internal_skin2_10",
+      "node_a": "internal_10",
+      "node_b": "skin2_10",
+      "stiffness_k": 99.16666666666667
+    },
+    {
+      "name": "outer_cross_10",
+      "node_a": "skin1_10",
+      "node_b": "skin2_10",
+      "stiffness_k": 74.16666666666667
+    },
+    {
+      "name": "skin1_internal_11",
+      "node_a": "skin1_11",
+      "node_b": "internal_11",
+      "stiffness_k": 103.33333333333334
+    },
+    {
+      "name": "limb1_internal_11",
+      "node_a": "limb1_11",
+      "node_b": "internal_11",
+      "stiffness_k": 78.33333333333333
+    },
+    {
+      "name": "internal_limb2_11",
+      "node_a": "internal_11",
+      "node_b": "limb2_11",
+      "stiffness_k": 107.5
+    },
+    {
+      "name": "internal_skin2_11",
+      "node_a": "internal_11",
+      "node_b": "skin2_11",
+      "stiffness_k": 82.5
+    },
+    {
+      "name": "outer_cross_11",
+      "node_a": "skin1_11",
+      "node_b": "skin2_11",
+      "stiffness_k": 111.66666666666666
+    },
+    {
+      "name": "skin1_internal_12",
+      "node_a": "skin1_12",
+      "node_b": "internal_12",
+      "stiffness_k": 86.66666666666667
+    },
+    {
+      "name": "limb1_internal_12",
+      "node_a": "limb1_12",
+      "node_b": "internal_12",
+      "stiffness_k": 115.83333333333334
+    },
+    {
+      "name": "internal_limb2_12",
+      "node_a": "internal_12",
+      "node_b": "limb2_12",
+      "stiffness_k": 90.83333333333333
+    },
+    {
+      "name": "internal_skin2_12",
+      "node_a": "internal_12",
+      "node_b": "skin2_12",
+      "stiffness_k": 120.0
+    },
+    {
+      "name": "outer_cross_12",
+      "node_a": "skin1_12",
+      "node_b": "skin2_12",
+      "stiffness_k": 95.0
+    },
+    {
+      "name": "skin1_internal_13",
+      "node_a": "skin1_13",
+      "node_b": "internal_13",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "limb1_internal_13",
+      "node_a": "limb1_13",
+      "node_b": "internal_13",
+      "stiffness_k": 99.16666666666667
+    },
+    {
+      "name": "internal_limb2_13",
+      "node_a": "internal_13",
+      "node_b": "limb2_13",
+      "stiffness_k": 74.16666666666667
+    },
+    {
+      "name": "internal_skin2_13",
+      "node_a": "internal_13",
+      "node_b": "skin2_13",
+      "stiffness_k": 103.33333333333334
+    },
+    {
+      "name": "outer_cross_13",
+      "node_a": "skin1_13",
+      "node_b": "skin2_13",
+      "stiffness_k": 78.33333333333333
+    },
+    {
+      "name": "skin1_internal_14",
+      "node_a": "skin1_14",
+      "node_b": "internal_14",
+      "stiffness_k": 107.5
+    },
+    {
+      "name": "limb1_internal_14",
+      "node_a": "limb1_14",
+      "node_b": "internal_14",
+      "stiffness_k": 82.5
+    },
+    {
+      "name": "internal_limb2_14",
+      "node_a": "internal_14",
+      "node_b": "limb2_14",
+      "stiffness_k": 111.66666666666666
+    },
+    {
+      "name": "internal_skin2_14",
+      "node_a": "internal_14",
+      "node_b": "skin2_14",
+      "stiffness_k": 86.66666666666667
+    },
+    {
+      "name": "outer_cross_14",
+      "node_a": "skin1_14",
+      "node_b": "skin2_14",
+      "stiffness_k": 115.83333333333334
+    },
+    {
+      "name": "skin1_internal_15",
+      "node_a": "skin1_15",
+      "node_b": "internal_15",
+      "stiffness_k": 90.83333333333333
+    },
+    {
+      "name": "limb1_internal_15",
+      "node_a": "limb1_15",
+      "node_b": "internal_15",
+      "stiffness_k": 120.0
+    },
+    {
+      "name": "internal_limb2_15",
+      "node_a": "internal_15",
+      "node_b": "limb2_15",
+      "stiffness_k": 95.0
+    },
+    {
+      "name": "internal_skin2_15",
+      "node_a": "internal_15",
+      "node_b": "skin2_15",
+      "stiffness_k": 70.0
+    },
+    {
+      "name": "outer_cross_15",
+      "node_a": "skin1_15",
+      "node_b": "skin2_15",
+      "stiffness_k": 99.16666666666667
+    }
+  ]
+}
