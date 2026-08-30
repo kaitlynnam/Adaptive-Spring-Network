@@ -3,6 +3,9 @@
 .matplotlib/
 __pycache__/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
 *.py[cod]
 spring-network/tables/**/*_test_torque_trace.csv
 seed-logs/

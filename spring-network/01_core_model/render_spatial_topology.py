@@ -33,6 +33,14 @@ TYPE_COLOR = {
     "limb1": "#31688e",
     "limb2": "#20a486",
 }
+DISPLAY_LABEL = {
+    "fixed": "Fixed anchors",
+    "skin1": "Proximal skin anchors",
+    "skin2": "Distal skin anchors",
+    "internal": "Free internal nodes",
+    "limb1": "Proximal joint nodes",
+    "limb2": "Distal joint nodes",
+}
 
 
 def coil_points(start, stop, radius=0.012, turns=9, samples=90):
@@ -106,7 +114,7 @@ def skin_cylinder(axis, start_x, stop_x, radius, color, angle=0.0):
     )
 
 
-def render(topology_path=TOPOLOGY_PATH, output_path=OUTPUT_PATH, angle_degrees=0.0):
+def render(topology_path=TOPOLOGY_PATH, output_path=OUTPUT_PATH, angle_degrees=25.0):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     topology = load_spatial_topology(topology_path, device)
     angle = np.radians(angle_degrees)
@@ -188,48 +196,13 @@ def render(topology_path=TOPOLOGY_PATH, output_path=OUTPUT_PATH, angle_degrees=0
             color=TYPE_COLOR[kind],
             marker="s" if kind in ("fixed", "skin1", "skin2") else "o",
             edgecolor="white", linewidth=0.8, depthshade=True,
-            label=f"{kind} nodes ({len(indices)})",
+            label=f"{DISPLAY_LABEL[kind]} ({len(indices)})",
         )
-    # Shaded barrel and end caps make the shared revolute bearing genuinely 3D.
-    bearing_phi = np.linspace(0.0, 2.0 * np.pi, 64)
-    bearing_half_length = topology["bearing_half_length"]
-    bearing_y = np.linspace(-bearing_half_length, bearing_half_length, 18)
-    bearing_phi_grid, bearing_y_grid = np.meshgrid(bearing_phi, bearing_y)
-    bearing_radius = topology["bearing_radius"]
-    axis.plot_surface(
-        bearing_radius * np.cos(bearing_phi_grid),
-        bearing_y_grid,
-        bearing_radius * np.sin(bearing_phi_grid),
-        color="#b9bdc2", edgecolor="none", alpha=0.96, shade=True,
-    )
-    for y_value in (-bearing_half_length, bearing_half_length):
-        cap = [
-            np.array(
-                [
-                    bearing_radius * np.cos(angle),
-                    y_value,
-                    bearing_radius * np.sin(angle),
-                ]
-            )
-            for angle in bearing_phi
-        ]
-        axis.add_collection3d(
-            Poly3DCollection(
-                [cap], facecolor="#dfe2e5", edgecolor="#4e5052",
-                linewidth=1.6, alpha=0.98,
-            )
-        )
-    axis.plot(
-        [], [], [], color="#b9bdc2", linewidth=9,
-        label="shared revolute bearing",
-    )
-
     spring_count = len(topology["spring_a"])
     assembly = (
         f"Split-Skin {spring_count}-Spring Joint"
         if split_skin else "Optimized Spatial Joint"
     )
-    axis.set_title(f"{assembly} — Bend {angle_degrees:+.0f}°", pad=15)
     axis.set_xlabel("x [m]")
     # Keep the original geometry orientation; only rename the displayed axes
     # so x is lateral, y is vertical, and z is depth.
@@ -245,21 +218,11 @@ def render(topology_path=TOPOLOGY_PATH, output_path=OUTPUT_PATH, angle_degrees=0
     axis.set_box_aspect((2.30, 2.16 * display_radius, 2.04 * display_radius))
     axis.view_init(elev=27, azim=-58, vertical_axis="z")
     axis.grid(False)
-    axis.legend(loc="upper left", framealpha=0.92)
     colorbar = figure.colorbar(
         plt.cm.ScalarMappable(norm=normalization, cmap=spring_map),
         ax=axis, shrink=0.58, pad=0.07,
     )
     colorbar.set_label("baseline stiffness [N/m]")
-    figure.text(
-        0.5, 0.025,
-        (
-            "The translucent skin is split at the joint; each anchor moves rigidly with its own limb."
-            if split_skin else
-            "Both limbs share the central bearing; fixed anchors sit in lateral banks beside the limb paths."
-        ),
-        ha="center", color="0.25",
-    )
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=190, facecolor="white", bbox_inches="tight")

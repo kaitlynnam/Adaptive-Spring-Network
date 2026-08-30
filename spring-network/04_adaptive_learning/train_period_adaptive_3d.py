@@ -32,6 +32,9 @@ from profile_generator import DEFAULT_TORQUE_LIMIT_NM, generate_profile_paramete
 DEFAULT_TOPOLOGY = (
     PROJECT_ROOT / "topologies" / "spatial" / "hybrid_internal_skin_3d_60_spring.json"
 )
+OBSERVATION_CHANNELS = (
+    "theta", "theta_dot", "theta_ddot", "target_torque", "spring_torque", "motor_torque",
+)
 
 
 def build_period_dataset(profiles, angles, angle_basis, period_seconds,
@@ -60,18 +63,25 @@ def build_period_dataset(profiles, angles, angle_basis, period_seconds,
 
 
 def period_observation(theta, theta_dot, theta_ddot, target, spring, motor,
-                       motion_scales, torque_scale):
+                       motion_scales, torque_scale, channel_mask=None,
+                       compact_channels=False):
     """Flatten one complete period in time order into the controller input."""
     channels = torch.stack((
         theta / motion_scales[0], theta_dot / motion_scales[1],
         theta_ddot / motion_scales[2], target / torque_scale,
         spring / torque_scale, motor / torque_scale,
     ), dim=2)
+    if channel_mask is not None:
+        mask = channel_mask.to(dtype=torch.bool)
+        if compact_channels:
+            channels = channels[:, :, mask]
+        else:
+            channels = channels * mask.to(dtype=channels.dtype).reshape(1, 1, -1)
     return channels.reshape(channels.shape[0], -1)
 
 
 def rollout(parameters, dataset, initial_k, min_k, periods, detach_buffer=True,
-            stiffness_lower=None, stiffness_upper=None):
+            stiffness_lower=None, stiffness_upper=None, compact_channels=False):
     """Run causal periods; no network call is made for the first period."""
     basis, target = dataset["basis"], dataset["target"]
     period_basis = dataset.get("period_basis")
@@ -96,7 +106,8 @@ def rollout(parameters, dataset, initial_k, min_k, periods, detach_buffer=True,
         if period_index + 1 < periods:
             observation = period_observation(
                 theta, theta_dot, theta_ddot, target, spring, motor,
-                motion_scales, dataset["torque_scale"],
+                motion_scales, dataset["torque_scale"], dataset.get("channel_mask"),
+                compact_channels,
             )
             if detach_buffer:
                 observation = observation.detach()
@@ -137,7 +148,8 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
                        training_mode="closed_loop", training_periods=6,
                        initial_stiffness_log_std=0.7, stiffness_lower=None,
                        stiffness_upper=None, stiffness_order_weight=0.1,
-                       objective="torque_mse"):
+                       objective="torque_mse", channel_mask=None,
+                       compact_channels=False):
     """Learn completed-period data -> stiffness that fits that same period.
 
     The first-period/default policy belongs to deployment and is deliberately
@@ -146,8 +158,15 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
     """
     torch_device = torch.device(device)
     data, scales = tensor_dataset(dataset, torch_device)
+    if channel_mask is not None:
+        data["channel_mask"] = torch.as_tensor(
+            channel_mask, dtype=torch.float32, device=torch_device
+        )
     initial_k = np.asarray(initial_k, dtype=float)
-    input_dim = dataset["samples_per_period"] * 6
+    active_channel_count = int(np.count_nonzero(channel_mask)) if channel_mask is not None else 6
+    input_dim = dataset["samples_per_period"] * (
+        active_channel_count if compact_channels else 6
+    )
     model = (
         initialize_period_model(
             np.random.default_rng(seed), input_dim, hidden_dim,
@@ -206,7 +225,8 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
     observation = period_observation(
         expanded["theta"], expanded["theta_dot"], expanded["theta_ddot"],
         expanded["target"], observed_spring, expanded["target"] - observed_spring,
-        data["motion_scales"], data["torque_scale"],
+        data["motion_scales"], data["torque_scale"], data.get("channel_mask"),
+        compact_channels,
     )
     expanded_basis = data["basis"][:, None, :, :].expand(
         -1, variant_count, -1, -1
@@ -232,7 +252,7 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
             torque, rollout_stiffness = rollout(
                 parameters, data, rollout_initial_k, min_k, training_periods,
                 detach_buffer=True, stiffness_lower=lower_tensor,
-                stiffness_upper=upper_tensor,
+                stiffness_upper=upper_tensor, compact_channels=compact_channels,
             )
             residual = torque[:, 1:, :] - data["target"][:, None, :]
             torque_mse = torch.mean(residual**2)
@@ -288,11 +308,16 @@ def train_period_model(dataset, initial_k, hidden_dim=256, iterations=5000,
 def predict_period_schedule(model, dataset, initial_k, min_k=0.0, periods=2,
                             device="cpu", motion_scales=None,
                             rollout_initial_stiffness=None, stiffness_lower=None,
-                            stiffness_upper=None):
+                            stiffness_upper=None, channel_mask=None,
+                            compact_channels=False):
     """Inference helper returning [trajectory, period, sample/spring] arrays."""
     data, inferred_scales = tensor_dataset(dataset, torch.device(device))
     scales = inferred_scales if motion_scales is None else np.asarray(motion_scales)
     data["motion_scales"] = torch.as_tensor(scales, dtype=torch.float32, device=device)
+    if channel_mask is not None:
+        data["channel_mask"] = torch.as_tensor(
+            channel_mask, dtype=torch.float32, device=device
+        )
     params = {k: torch.as_tensor(v, dtype=torch.float32, device=device) for k, v in model.items()}
     base = torch.as_tensor(
         initial_k if rollout_initial_stiffness is None else rollout_initial_stiffness,
@@ -306,6 +331,7 @@ def predict_period_schedule(model, dataset, initial_k, min_k=0.0, periods=2,
         torque, stiffness = rollout(
             params, data, base, min_k, periods,
             stiffness_lower=lower, stiffness_upper=upper,
+            compact_channels=compact_channels,
         )
     return torque.cpu().numpy(), stiffness.cpu().numpy()
 
@@ -314,7 +340,8 @@ def refresh_period_basis(model, dataset, topology, initial_k, min_k,
                          motion_scales, relaxation_steps, rollout_periods=2,
                          batch_size=1024, progress_interval=10,
                          random_initial_log_std=0.0, seed=0,
-                         stiffness_lower=None, stiffness_upper=None):
+                         stiffness_lower=None, stiffness_upper=None, channel_mask=None,
+                         compact_channels=False):
     """Rebuild a separate local torque basis for every rollout period."""
     rollout_initial = np.broadcast_to(
         np.asarray(initial_k, dtype=float)[None, :],
@@ -341,6 +368,8 @@ def refresh_period_basis(model, dataset, topology, initial_k, min_k,
         device=str(topology["local_positions"].device), motion_scales=motion_scales,
         rollout_initial_stiffness=rollout_initial,
         stiffness_lower=stiffness_lower, stiffness_upper=stiffness_upper,
+        channel_mask=channel_mask,
+        compact_channels=compact_channels,
     )
     profiles, samples, spring_count = dataset["basis"].shape
     stiffness = np.broadcast_to(
@@ -482,6 +511,23 @@ def main():
     parser.add_argument("--progress-interval", type=int, default=100)
     parser.add_argument("--output-name", default="period_adaptive_3d_60spring_bounded_extended")
     parser.add_argument(
+        "--rest-length-scale", type=float,
+        help="Override every spring rest length by this fraction of its initial geometry.",
+    )
+    parser.add_argument(
+        "--observation-channels", nargs="+", choices=OBSERVATION_CHANNELS,
+        default=list(OBSERVATION_CHANNELS),
+        help="Observation channels retained during both training and inference.",
+    )
+    parser.add_argument(
+        "--compact-observation-channels", action="store_true",
+        help="Physically omit inactive channels from the MLP input layer.",
+    )
+    parser.add_argument(
+        "--uniform-initial-stiffness", type=float,
+        help="Override every spring's topology initial stiffness with this value.",
+    )
+    parser.add_argument(
         "--resume-checkpoint", type=Path,
         help="Continue training from an existing period-adaptive .npz checkpoint.",
     )
@@ -509,6 +555,22 @@ def main():
     device = torch.device(args.device)
     print("Loading 3D topology and building the initial relaxed torque basis...", flush=True)
     topology = load_spatial_topology(args.topology, device)
+    if args.uniform_initial_stiffness is not None:
+        if args.uniform_initial_stiffness <= 0:
+            parser.error("uniform-initial-stiffness must be positive")
+        topology["initial_stiffness"] = torch.full_like(
+            topology["initial_stiffness"], args.uniform_initial_stiffness
+        )
+    configured_rest_scale = float(topology["data"].get("rest_length_scale", 1.0))
+    active_rest_scale = (
+        configured_rest_scale if args.rest_length_scale is None else args.rest_length_scale
+    )
+    if active_rest_scale <= 0:
+        parser.error("rest-length-scale must be positive")
+    topology["rest_lengths"] *= active_rest_scale / configured_rest_scale
+    channel_mask = np.asarray(
+        [name in args.observation_channels for name in OBSERVATION_CHANNELS], dtype=float
+    )
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, args.relaxation_steps)
     print("Initial relaxed torque basis complete; generating trajectories...", flush=True)
@@ -552,6 +614,8 @@ def main():
             args.training_periods, args.initial_stiffness_log_std,
             stiffness_lower, stiffness_upper, args.stiffness_order_weight,
             args.objective,
+            channel_mask,
+            args.compact_observation_channels,
         )
         history.extend((completed + i, rmse, loss) for i, rmse, loss in phase_history)
         completed += count
@@ -566,10 +630,14 @@ def main():
                 args.initial_stiffness_log_std if args.training_mode == "closed_loop" else 0.0,
                 args.seed + phase_index + 1,
                 stiffness_lower, stiffness_upper,
+                channel_mask,
+                args.compact_observation_channels,
             )
     _, stiffness = predict_period_schedule(
         model, test, base_k, args.min_stiffness, args.periods, args.device, scales,
         stiffness_lower=stiffness_lower, stiffness_upper=stiffness_upper,
+        channel_mask=channel_mask,
+        compact_channels=args.compact_observation_channels,
     )
     torque, force_residual = exact_period_torque(
         test, topology, stiffness, args.relaxation_steps,
@@ -584,8 +652,10 @@ def main():
     save_model(output, model, args.output_name, args.min_stiffness, np.inf,
                controller_type="causal_period_adaptive_3d",
                feature_type="previous_period_motion_target_spring_motor",
-               channels=np.array(["theta", "theta_dot", "theta_ddot", "target_torque",
-                                  "spring_torque", "motor_torque"]),
+               channels=np.array(OBSERVATION_CHANNELS),
+               active_observation_channels=np.array(args.observation_channels),
+               observation_channel_mask=channel_mask,
+               compact_observation_channels=args.compact_observation_channels,
                first_period_policy="topology_initial_stiffness_no_network_input",
                update_policy="once_at_period_boundary_hold_for_full_period",
                training_alignment="completed_period_input_to_same_period_fit_loss",
@@ -594,6 +664,11 @@ def main():
                periods=args.periods, motion_scales=scales, torque_scale=train["torque_scale"],
                motion_mode=args.motion_mode,
                topology=str(args.topology), spring_count=len(base_k), initial_stiffness=base_k,
+               uniform_initial_stiffness=(
+                   np.nan if args.uniform_initial_stiffness is None
+                   else args.uniform_initial_stiffness
+               ),
+               rest_length_scale=active_rest_scale,
                training_profiles=args.training_profiles, test_profiles=args.test_profiles,
                training_iterations=args.iterations, learning_rate=args.learning_rate,
                observation_variants=args.observation_variants,

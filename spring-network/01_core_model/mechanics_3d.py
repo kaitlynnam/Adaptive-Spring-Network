@@ -175,13 +175,8 @@ def relax_positions(
     use_lbfgs_polish = steps >= 600
     adam_steps = min(300, steps) if use_lbfgs_polish else steps
     optimizer = torch.optim.Adam([values], lr=learning_rate)
-    polish_start = max(1, int(0.75 * adam_steps))
     completed_steps = 0
     for step in range(adam_steps):
-        if step == polish_start:
-            # A smaller final step suppresses Adam's limit-cycle residuals in
-            # high-stiffness controller states without blindly adding steps.
-            optimizer.param_groups[0]["lr"] = learning_rate * 0.2
         optimizer.zero_grad(set_to_none=True)
         positions = prescribed.clone()
         positions[:, internal, :] = values
@@ -202,10 +197,9 @@ def relax_positions(
             if float(residual.detach()) <= force_tolerance:
                 break
     if use_lbfgs_polish:
-        # Restart Adam at a small step for high-stiffness final evaluation.
-        # The restart discards large early-stage moments that otherwise leave
-        # a persistent limit cycle around equilibrium.
-        optimizer = torch.optim.Adam([values], lr=learning_rate / 15.0)
+        # Restarting discards the early-stage moments while preserving the
+        # configured learning rate throughout mechanics relaxation.
+        optimizer = torch.optim.Adam([values], lr=learning_rate)
         polish_steps = steps - adam_steps
         for _ in range(polish_steps):
             optimizer.zero_grad(set_to_none=True)

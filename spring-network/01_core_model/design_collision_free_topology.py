@@ -81,7 +81,7 @@ def build_topology(lanes=12):
         "bearing_clearance": 0.02,
         "bearing_collision_penalty": 0.0,
         "rest_angle_degrees": 0.0,
-        "rest_length_scale": 0.78,
+        "rest_length_scale": 0.75,
         "name": "split_skin_collision_free_3d_60_spring",
         "description": (
             "Twelve separated five-spring lanes routed through paired free "

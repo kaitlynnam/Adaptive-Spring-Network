@@ -1,0 +1,2 @@
+profiles,periods,default_mean_rmse_nm,settled_mean_rmse_nm,settled_aggregate_offload_pct,settled_mean_profile_offload_pct,negative_offload_profile_pct,improved_rmse_profile_pct
+2,2,46.459360083338936,46.4461979121228,-3.1607892334366117,-3.982063902440902,100.0,100.0

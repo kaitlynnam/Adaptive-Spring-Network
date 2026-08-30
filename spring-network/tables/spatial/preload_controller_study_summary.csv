@@ -1,0 +1,9 @@
+rest_length_scale,nominal_preload_pct,screen_adapted_rmse_nm,confirmation_adapted_rmse_nm,settled_rmse_nm,mean_profile_offload_pct,aggregate_motor_work_offload_pct,negative_offload_profiles_pct
+0.45,55.0,44.459,,,,,
+0.50,50.0,43.753,,,,,
+0.55,45.0,43.392,37.605,36.306,31.899,33.542,3.50
+0.575,42.5,43.391,37.552,36.118,32.361,33.894,2.50
+0.60,40.0,43.428,37.368,35.856,32.865,34.408,2.50
+0.65,35.0,43.626,,,,,
+0.70,30.0,44.369,,,,,
+0.75,25.0,45.691,,,,,

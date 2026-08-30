@@ -39,7 +39,8 @@ def softplus(values):
     return np.maximum(values, 0.0) + np.log1p(np.exp(-np.abs(values)))
 
 
-def encode_measured_period(dataset, index, spring_torque, scales, torque_scale):
+def encode_measured_period(dataset, index, spring_torque, scales, torque_scale,
+                           channel_mask=None, compact_channels=False):
     channels = np.column_stack((
         dataset["theta"][index] / scales[0],
         dataset["theta_dot"][index] / scales[1],
@@ -48,6 +49,12 @@ def encode_measured_period(dataset, index, spring_torque, scales, torque_scale):
         spring_torque / torque_scale,
         (dataset["target"][index] - spring_torque) / torque_scale,
     ))
+    if channel_mask is not None:
+        mask = np.asarray(channel_mask, dtype=bool)
+        if compact_channels:
+            channels = channels[:, mask]
+        else:
+            channels *= mask.reshape(1, -1)
     return channels.reshape(1, -1)
 
 
@@ -93,7 +100,9 @@ def deploy(model, metadata, dataset, topology, relaxation_steps, batch_size,
         torque_rows.append(measured_torque)
         residual_rows.append(residual[0, 0])
         observation = encode_measured_period(
-            dataset, index, measured_torque, scales, torque_scale
+            dataset, index, measured_torque, scales, torque_scale,
+            metadata.get("observation_channel_mask"),
+            bool(metadata.get("compact_observation_channels", False)),
         )
         stiffness = controller_step(model, observation, min_k, lower, upper)
     return (np.asarray(torque_rows), np.asarray(stiffness_schedule),
@@ -166,6 +175,13 @@ def main():
     samples = int(metadata["samples_per_period"])
     period_seconds = float(metadata["period_seconds"])
     topology = load_spatial_topology(args.topology, torch.device(args.device))
+    topology["initial_stiffness"] = torch.as_tensor(
+        metadata["initial_stiffness"], dtype=torch.float32,
+        device=torch.device(args.device),
+    )
+    configured_rest_scale = float(topology["data"].get("rest_length_scale", 1.0))
+    active_rest_scale = float(metadata.get("rest_length_scale", configured_rest_scale))
+    topology["rest_lengths"] *= active_rest_scale / configured_rest_scale
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, args.relaxation_steps)
     rng = np.random.default_rng(args.seed)

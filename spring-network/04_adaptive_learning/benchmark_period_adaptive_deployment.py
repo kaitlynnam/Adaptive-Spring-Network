@@ -90,12 +90,19 @@ def save_benchmark_figures(output_dir, name, dataset, torque, rmse, offload):
     plt.close(fig)
 
 
-def encode_batch(dataset, spring_torque, scales, torque_scale):
+def encode_batch(dataset, spring_torque, scales, torque_scale, channel_mask=None,
+                 compact_channels=False):
     channels = np.stack((
         dataset["theta"] / scales[0], dataset["theta_dot"] / scales[1],
         dataset["theta_ddot"] / scales[2], dataset["target"] / torque_scale,
         spring_torque / torque_scale, (dataset["target"] - spring_torque) / torque_scale,
     ), axis=2)
+    if channel_mask is not None:
+        mask = np.asarray(channel_mask, dtype=bool)
+        if compact_channels:
+            channels = channels[:, :, mask]
+        else:
+            channels *= mask.reshape(1, 1, -1)
     return channels.reshape(len(channels), -1)
 
 
@@ -117,6 +124,13 @@ def main():
         parser.error("profiles must be positive and periods must be at least two")
     model, metadata = load_checkpoint(args.checkpoint)
     topology = load_spatial_topology(args.topology, torch.device(args.device))
+    topology["initial_stiffness"] = torch.as_tensor(
+        metadata["initial_stiffness"], dtype=torch.float32,
+        device=torch.device(args.device),
+    )
+    configured_rest_scale = float(topology["data"].get("rest_length_scale", 1.0))
+    active_rest_scale = float(metadata.get("rest_length_scale", configured_rest_scale))
+    topology["rest_lengths"] *= active_rest_scale / configured_rest_scale
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, args.relaxation_steps)
     profiles = generate_profile_parameters(np.random.default_rng(args.seed), args.profiles)
@@ -150,6 +164,8 @@ def main():
         observation = encode_batch(
             dataset, measured, np.asarray(metadata["motion_scales"]),
             float(metadata["torque_scale"]),
+            metadata.get("observation_channel_mask"),
+            bool(metadata.get("compact_observation_channels", False)),
         )
         stiffness = controller_step(
             model, observation, float(metadata["min_k"]),

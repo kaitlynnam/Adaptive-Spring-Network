@@ -1,0 +1,591 @@
+{
+  "passed": false,
+  "joint_axis": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "angles_degrees": [
+    -45.0,
+    45.0
+  ],
+  "angle_samples": 9,
+  "relaxation_steps": 160,
+  "rest_length_scale": 0.7,
+  "nominal_preload_fraction": 0.30000000000000004,
+  "all_nodes_used": true,
+  "spring_graph_connected": true,
+  "internal_spring_degrees": {
+    "internal_00": 4,
+    "internal_01": 4,
+    "internal_02": 4,
+    "internal_03": 4,
+    "internal_04": 4,
+    "internal_05": 4,
+    "internal_06": 4,
+    "internal_07": 4,
+    "internal_08": 4,
+    "internal_09": 4,
+    "internal_10": 4,
+    "internal_11": 4
+  },
+  "all_internal_nodes_have_at_least_three_springs": true,
+  "fixed_to_fixed_springs": 0,
+  "same_rigid_body_springs": 0,
+  "skin_to_skin_springs": 0,
+  "lateral_anchor_banks": true,
+  "split_skin_circumferential_coverage": true,
+  "all_limb_nodes_rigidly_supported": true,
+  "maximum_limb_standoff_length_m": 1.1464770938163227e-09,
+  "finite_relaxed_geometry": true,
+  "bearing_intersections": 91,
+  "bearing_intersection_examples": [
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 30,
+      "node_a": "internal_06",
+      "node_b": "joint_internal_06",
+      "minimum_radius_m": 0.15429534306484857
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 31,
+      "node_a": "internal_07",
+      "node_b": "joint_internal_07",
+      "minimum_radius_m": 0.13981036998127555
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 34,
+      "node_a": "internal_10",
+      "node_b": "joint_internal_10",
+      "minimum_radius_m": 0.1522692438329628
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 35,
+      "node_a": "internal_11",
+      "node_b": "joint_internal_11",
+      "minimum_radius_m": 0.14719683323393765
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 54,
+      "node_a": "skin_direct_06",
+      "node_b": "joint_torque_06",
+      "minimum_radius_m": 0.10632753395879442
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 55,
+      "node_a": "skin_direct_07",
+      "node_b": "joint_torque_07",
+      "minimum_radius_m": 0.05151293910595668
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 56,
+      "node_a": "skin_direct_08",
+      "node_b": "joint_torque_08",
+      "minimum_radius_m": 0.11713545162000225
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 57,
+      "node_a": "skin_direct_09",
+      "node_b": "joint_torque_09",
+      "minimum_radius_m": 0.11207477715554226
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 58,
+      "node_a": "skin_direct_10",
+      "node_b": "joint_torque_10",
+      "minimum_radius_m": 0.08815793421798117
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_index": 59,
+      "node_a": "skin_direct_11",
+      "node_b": "joint_torque_11",
+      "minimum_radius_m": 0.14083631016455347
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 24,
+      "node_a": "internal_00",
+      "node_b": "joint_internal_00",
+      "minimum_radius_m": 0.148579289778618
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 30,
+      "node_a": "internal_06",
+      "node_b": "joint_internal_06",
+      "minimum_radius_m": 0.14486606253835466
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 31,
+      "node_a": "internal_07",
+      "node_b": "joint_internal_07",
+      "minimum_radius_m": 0.14500475831506127
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 35,
+      "node_a": "internal_11",
+      "node_b": "joint_internal_11",
+      "minimum_radius_m": 0.14188225536528332
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 53,
+      "node_a": "skin_direct_05",
+      "node_b": "joint_torque_05",
+      "minimum_radius_m": 0.14896035144459083
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 54,
+      "node_a": "skin_direct_06",
+      "node_b": "joint_torque_06",
+      "minimum_radius_m": 0.09267993428590317
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 55,
+      "node_a": "skin_direct_07",
+      "node_b": "joint_torque_07",
+      "minimum_radius_m": 0.0850038012271825
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 56,
+      "node_a": "skin_direct_08",
+      "node_b": "joint_torque_08",
+      "minimum_radius_m": 0.14961615905785566
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 57,
+      "node_a": "skin_direct_09",
+      "node_b": "joint_torque_09",
+      "minimum_radius_m": 0.14456984888539762
+    },
+    {
+      "angle_degrees": -33.75000008540567,
+      "spring_index": 58,
+      "node_a": "skin_direct_10",
+      "node_b": "joint_torque_10",
+      "minimum_radius_m": 0.09468748496058929
+    }
+  ],
+  "bearing_violation_angle_range_degrees": [
+    -45.00000125223908,
+    45.00000125223908
+  ],
+  "worst_bearing_collision_counts": [
+    {
+      "spring_index": 59,
+      "node_a": "skin_direct_11",
+      "node_b": "joint_torque_11",
+      "collision_states": 8
+    },
+    {
+      "spring_index": 30,
+      "node_a": "internal_06",
+      "node_b": "joint_internal_06",
+      "collision_states": 8
+    },
+    {
+      "spring_index": 53,
+      "node_a": "skin_direct_05",
+      "node_b": "joint_torque_05",
+      "collision_states": 8
+    },
+    {
+      "spring_index": 24,
+      "node_a": "internal_00",
+      "node_b": "joint_internal_00",
+      "collision_states": 7
+    },
+    {
+      "spring_index": 54,
+      "node_a": "skin_direct_06",
+      "node_b": "joint_torque_06",
+      "collision_states": 7
+    },
+    {
+      "spring_index": 48,
+      "node_a": "skin_direct_00",
+      "node_b": "joint_torque_00",
+      "collision_states": 7
+    },
+    {
+      "spring_index": 35,
+      "node_a": "internal_11",
+      "node_b": "joint_internal_11",
+      "collision_states": 6
+    },
+    {
+      "spring_index": 58,
+      "node_a": "skin_direct_10",
+      "node_b": "joint_torque_10",
+      "collision_states": 5
+    },
+    {
+      "spring_index": 52,
+      "node_a": "skin_direct_04",
+      "node_b": "joint_torque_04",
+      "collision_states": 5
+    },
+    {
+      "spring_index": 49,
+      "node_a": "skin_direct_01",
+      "node_b": "joint_torque_01",
+      "collision_states": 4
+    },
+    {
+      "spring_index": 29,
+      "node_a": "internal_05",
+      "node_b": "joint_internal_05",
+      "collision_states": 4
+    },
+    {
+      "spring_index": 55,
+      "node_a": "skin_direct_07",
+      "node_b": "joint_torque_07",
+      "collision_states": 4
+    }
+  ],
+  "limb_intersections": 0,
+  "limb_intersection_examples": [],
+  "minimum_bearing_centerline_radius_m": 0.05151293910595668,
+  "bearing_radius_m": 0.12,
+  "required_bearing_centerline_radius_m": 0.15499999999999997,
+  "minimum_spring_length_m": 0.3044671416282654,
+  "skin_radius_m": 0.74,
+  "joint_boot_radius_m": 0.9,
+  "skin_centerline_containment_violations": 0,
+  "skin_centerline_containment_examples": [],
+  "required_spring_to_spring_clearance_m": 0.032,
+  "minimum_spring_to_spring_clearance_m": 0.0016627979930490255,
+  "spring_to_spring_clearance_violations": 155,
+  "spring_to_spring_clearance_examples": [
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 24,
+      "spring_b": 59,
+      "clearance_m": 0.019094932824373245
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 29,
+      "spring_b": 53,
+      "clearance_m": 0.006236142944544554
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 30,
+      "spring_b": 54,
+      "clearance_m": 0.0024126111529767513
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 31,
+      "spring_b": 55,
+      "clearance_m": 0.01588529720902443
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 32,
+      "spring_b": 56,
+      "clearance_m": 0.021104812622070312
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 33,
+      "spring_b": 57,
+      "clearance_m": 0.028277399018406868
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 36,
+      "spring_b": 48,
+      "clearance_m": 0.026892703026533127
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 36,
+      "spring_b": 59,
+      "clearance_m": 0.023793810978531837
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 37,
+      "spring_b": 49,
+      "clearance_m": 0.01398944016546011
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 39,
+      "spring_b": 51,
+      "clearance_m": 0.013629755936563015
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 40,
+      "spring_b": 52,
+      "clearance_m": 0.028645196929574013
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 41,
+      "spring_b": 53,
+      "clearance_m": 0.01309154275804758
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 42,
+      "spring_b": 54,
+      "clearance_m": 0.024262594059109688
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 43,
+      "spring_b": 55,
+      "clearance_m": 0.020836498588323593
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 45,
+      "spring_b": 57,
+      "clearance_m": 0.02218349650502205
+    },
+    {
+      "angle_degrees": -45.00000125223908,
+      "spring_a": 47,
+      "spring_b": 59,
+      "clearance_m": 0.027063215151429176
+    }
+  ],
+  "spring_collision_angle_range_degrees": [
+    -45.00000125223908,
+    45.00000125223908
+  ],
+  "worst_spring_pair_collision_counts": [
+    {
+      "spring_a": 36,
+      "spring_b": 48,
+      "spring_a_endpoints": [
+        "internal_00",
+        "joint_direct_00"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_00",
+        "joint_torque_00"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 37,
+      "spring_b": 49,
+      "spring_a_endpoints": [
+        "internal_01",
+        "joint_direct_01"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_01",
+        "joint_torque_01"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 39,
+      "spring_b": 51,
+      "spring_a_endpoints": [
+        "internal_03",
+        "joint_direct_03"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_03",
+        "joint_torque_03"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 41,
+      "spring_b": 53,
+      "spring_a_endpoints": [
+        "internal_05",
+        "joint_direct_05"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_05",
+        "joint_torque_05"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 42,
+      "spring_b": 54,
+      "spring_a_endpoints": [
+        "internal_06",
+        "joint_direct_06"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_06",
+        "joint_torque_06"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 43,
+      "spring_b": 55,
+      "spring_a_endpoints": [
+        "internal_07",
+        "joint_direct_07"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_07",
+        "joint_torque_07"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 45,
+      "spring_b": 57,
+      "spring_a_endpoints": [
+        "internal_09",
+        "joint_direct_09"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_09",
+        "joint_torque_09"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 47,
+      "spring_b": 59,
+      "spring_a_endpoints": [
+        "internal_11",
+        "joint_direct_11"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_11",
+        "joint_torque_11"
+      ],
+      "collision_states": 9
+    },
+    {
+      "spring_a": 34,
+      "spring_b": 58,
+      "spring_a_endpoints": [
+        "internal_10",
+        "joint_internal_10"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_10",
+        "joint_torque_10"
+      ],
+      "collision_states": 8
+    },
+    {
+      "spring_a": 35,
+      "spring_b": 59,
+      "spring_a_endpoints": [
+        "internal_11",
+        "joint_internal_11"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_11",
+        "joint_torque_11"
+      ],
+      "collision_states": 8
+    },
+    {
+      "spring_a": 29,
+      "spring_b": 53,
+      "spring_a_endpoints": [
+        "internal_05",
+        "joint_internal_05"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_05",
+        "joint_torque_05"
+      ],
+      "collision_states": 7
+    },
+    {
+      "spring_a": 30,
+      "spring_b": 54,
+      "spring_a_endpoints": [
+        "internal_06",
+        "joint_internal_06"
+      ],
+      "spring_b_endpoints": [
+        "skin_direct_06",
+        "joint_torque_06"
+      ],
+      "collision_states": 6
+    }
+  ],
+  "worst_spring_collision_counts": [
+    {
+      "spring_index": 59,
+      "collision_states": 21
+    },
+    {
+      "spring_index": 53,
+      "collision_states": 20
+    },
+    {
+      "spring_index": 54,
+      "collision_states": 15
+    },
+    {
+      "spring_index": 51,
+      "collision_states": 15
+    },
+    {
+      "spring_index": 48,
+      "collision_states": 15
+    },
+    {
+      "spring_index": 57,
+      "collision_states": 15
+    },
+    {
+      "spring_index": 55,
+      "collision_states": 14
+    },
+    {
+      "spring_index": 49,
+      "collision_states": 14
+    },
+    {
+      "spring_index": 42,
+      "collision_states": 11
+    },
+    {
+      "spring_index": 36,
+      "collision_states": 11
+    },
+    {
+      "spring_index": 58,
+      "collision_states": 10
+    },
+    {
+      "spring_index": 37,
+      "collision_states": 9
+    }
+  ],
+  "support_radius_m": 0.003,
+  "required_spring_to_support_clearance_m": 0.018,
+  "minimum_spring_to_support_clearance_m": Infinity,
+  "spring_to_support_clearance_violations": 0,
+  "spring_to_support_clearance_examples": [],
+  "scope": "post-relaxation diagnostic only; checks configured spring-radius clearance against other springs, supports, limbs, and the bearing, but excludes collision response, fastener design, deformation, friction, fatigue, and structural stress"
+}

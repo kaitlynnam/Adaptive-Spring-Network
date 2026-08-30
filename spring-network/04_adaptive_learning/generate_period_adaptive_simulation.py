@@ -6,6 +6,13 @@ import csv
 import sys
 
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.animation import FFMpegWriter
+from matplotlib import colormaps
+from matplotlib.colors import LogNorm
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import plotly.graph_objects as go
 from plotly.colors import sample_colorscale
 from plotly.subplots import make_subplots
@@ -137,12 +144,12 @@ def skin_shell_trace(start_x, stop_x, radius, color, name, axis, angle=0.0):
     """Create a translucent wireframe cylinder rigidly mounted to a limb."""
     lines = []
     phi = np.linspace(0.0, 2.0 * np.pi, 49)
-    for axial in np.linspace(start_x, stop_x, 10):
+    for axial in np.linspace(start_x, stop_x, 14):
         lines.extend(np.column_stack((np.full_like(phi, axial),
                                       radius * np.cos(phi),
                                       radius * np.sin(phi))).tolist())
         lines.append([np.nan, np.nan, np.nan])
-    for phase in np.linspace(0.0, 2.0 * np.pi, 18, endpoint=False):
+    for phase in np.linspace(0.0, 2.0 * np.pi, 24, endpoint=False):
         axial = np.linspace(start_x, stop_x, 24)
         lines.extend(np.column_stack((axial, np.full_like(axial, radius * np.cos(phase)),
                                       np.full_like(axial, radius * np.sin(phase)))).tolist())
@@ -151,7 +158,7 @@ def skin_shell_trace(start_x, stop_x, radius, color, name, axis, angle=0.0):
     x_value, y_value, z_value = display_xyz(points)
     return go.Scatter3d(
         x=x_value, y=y_value, z=z_value, mode="lines", name=name,
-        line={"color": color, "width": 2}, opacity=0.32,
+        line={"color": color, "width": 3}, opacity=0.62,
         hovertemplate=f"{name}<extra></extra>",
     )
 
@@ -266,11 +273,11 @@ def build_html(dataset, topology, torque, stiffness, output, max_frames,
     limb_length = max(float(np.max(np.abs(topology["local_positions"][:, 0].detach().cpu().numpy()))) + 0.2, 1.0)
     joint_axis = topology["joint_axis"].detach().cpu().numpy()
     figure.add_trace(tapered_limb_trace(
-        -limb_length, -0.065, "#31688e", "fixed limb", joint_axis,
+        -limb_length, -0.065, "#31688e", "proximal limb", joint_axis,
     ), row=1, col=1)
     moving_limb_trace_index = len(figure.data)
     figure.add_trace(tapered_limb_trace(
-        0.065, limb_length, "#20a486", "moving limb", joint_axis,
+        0.065, limb_length, "#20a486", "distal limb", joint_axis,
         theta[frame_indices[0]],
     ), row=1, col=1)
     figure.add_trace(bearing_trace(
@@ -279,11 +286,11 @@ def build_html(dataset, topology, torque, stiffness, output, max_frames,
     ), row=1, col=1)
     skin_radius = float(topology["data"].get("skin_radius", 0.74))
     figure.add_trace(skin_shell_trace(
-        -limb_length, -0.15, skin_radius, "#2864b7", "fixed skin shell", joint_axis,
+        -limb_length, -0.15, skin_radius, "#2864b7", "proximal outer skin", joint_axis,
     ), row=1, col=1)
     moving_shell_trace_index = len(figure.data)
     figure.add_trace(skin_shell_trace(
-        0.15, limb_length, skin_radius, "#15956f", "moving skin shell", joint_axis,
+        0.15, limb_length, skin_radius, "#15956f", "distal outer skin", joint_axis,
         theta[frame_indices[0]],
     ), row=1, col=1)
     spring_trace_indices = []
@@ -347,11 +354,11 @@ def build_html(dataset, topology, torque, stiffness, output, max_frames,
         frame_data = []
         frame_traces = []
         frame_data.append(tapered_limb_trace(
-            0.065, limb_length, "#20a486", "moving limb", joint_axis, theta[index],
+            0.065, limb_length, "#20a486", "distal limb", joint_axis, theta[index],
         ))
         frame_traces.append(moving_limb_trace_index)
         frame_data.append(skin_shell_trace(
-            0.15, limb_length, skin_radius, "#15956f", "moving skin shell",
+            0.15, limb_length, skin_radius, "#15956f", "distal outer skin",
             joint_axis, theta[index],
         ))
         frame_traces.append(moving_shell_trace_index)
@@ -415,6 +422,166 @@ def build_html(dataset, topology, torque, stiffness, output, max_frames,
     figure.write_html(output, include_plotlyjs=True, auto_play=False)
 
 
+def write_video(dataset, topology, torque, stiffness, output, max_frames,
+                visual_relaxation_steps, frame_duration_ms=80):
+    """Render the deployment frames directly to an H.264 MP4."""
+    periods, samples = torque.shape
+    global_time = np.concatenate([
+        dataset["t"][p] + p * dataset["period_seconds"] for p in range(periods)
+    ])
+    theta = dataset["theta"].reshape(-1)
+    target = dataset["target"].reshape(-1)
+    spring_torque = torque.reshape(-1)
+    motor = target - spring_torque
+    schedule = np.broadcast_to(
+        stiffness[:, None, :], (periods, samples, stiffness.shape[1])
+    ).reshape(-1, stiffness.shape[1])
+    frame_indices = np.unique(np.linspace(
+        0, len(global_time) - 1, min(max_frames, len(global_time))
+    ).astype(int))
+    device = topology["local_positions"].device
+    prescribed = prescribed_positions(
+        topology, torch.as_tensor(theta[frame_indices], dtype=torch.float32, device=device)
+    )
+    positions = relax_positions(
+        topology, prescribed,
+        torch.as_tensor(schedule[frame_indices].copy(), dtype=torch.float32, device=device),
+        steps=visual_relaxation_steps,
+    ).detach().cpu().numpy()
+    spring_a = topology["spring_a"].detach().cpu().numpy()
+    spring_b = topology["spring_b"].detach().cpu().numpy()
+    color_min = max(float(np.min(stiffness)), 1e-6)
+    color_max = max(float(np.max(stiffness)), color_min * 1.001)
+    normalization = LogNorm(color_min, color_max)
+    color_map = colormaps["turbo"]
+
+    def draw_limb(axis, start_x, stop_x, color, angle=0.0):
+        """Draw a tapered rigid limb, rotating the distal limb about global Y."""
+        def section(x_value, scale):
+            half_y = 0.035 + 0.030 * scale
+            half_z = 0.055 + 0.045 * scale
+            return np.asarray([
+                [x_value, -half_y, -half_z],
+                [x_value, half_y, -half_z],
+                [x_value, half_y, half_z],
+                [x_value, -half_y, half_z],
+            ], dtype=float)
+
+        scale_denominator = max(abs(start_x), abs(stop_x), 1e-9)
+        first = section(start_x, abs(start_x) / scale_denominator)
+        second = section(stop_x, abs(stop_x) / scale_denominator)
+        if angle:
+            cosine, sine = np.cos(angle), np.sin(angle)
+            for points in (first, second):
+                old_x, old_z = points[:, 0].copy(), points[:, 2].copy()
+                points[:, 0] = cosine * old_x + sine * old_z
+                points[:, 2] = -sine * old_x + cosine * old_z
+        faces = [first, second]
+        for face_index in range(4):
+            following = (face_index + 1) % 4
+            faces.append(np.asarray([
+                first[face_index], first[following],
+                second[following], second[face_index],
+            ]))
+        axis.add_collection3d(Poly3DCollection(
+            faces, facecolor=color, edgecolor="white", linewidth=0.7, alpha=0.58,
+        ))
+
+    def draw_skin_shell(axis, start_x, stop_x, radius, color, angle=0.0):
+        """Draw the translucent outer skin rigidly attached to one limb."""
+        x_grid, phi_grid = np.meshgrid(
+            np.linspace(start_x, stop_x, 22), np.linspace(0.0, 2.0 * np.pi, 40)
+        )
+        y_grid = radius * np.cos(phi_grid)
+        z_grid = radius * np.sin(phi_grid)
+        if angle:
+            cosine, sine = np.cos(angle), np.sin(angle)
+            old_x, old_z = x_grid.copy(), z_grid.copy()
+            x_grid = cosine * old_x + sine * old_z
+            z_grid = -sine * old_x + cosine * old_z
+        axis.plot_wireframe(
+            x_grid, y_grid, z_grid, color=color, linewidth=0.52, alpha=0.42,
+            rstride=2, cstride=2,
+        )
+
+    def draw_joint_envelope(axis, radius):
+        """Draw the flexible central joint envelope used in the topology view."""
+        azimuth, polar = np.meshgrid(
+            np.linspace(0.0, 2.0 * np.pi, 28), np.linspace(0.0, np.pi, 16)
+        )
+        axis.plot_wireframe(
+            radius * np.sin(polar) * np.cos(azimuth),
+            radius * np.sin(polar) * np.sin(azimuth),
+            radius * np.cos(polar),
+            color="#7c8796", linewidth=0.28, alpha=0.10,
+            rstride=2, cstride=2,
+        )
+
+    figure = plt.figure(figsize=(16, 8), facecolor="white")
+    grid = figure.add_gridspec(2, 2, width_ratios=(1.12, 1.0))
+    model_axis = figure.add_subplot(grid[:, 0], projection="3d")
+    torque_axis = figure.add_subplot(grid[0, 1])
+    stiffness_axis = figure.add_subplot(grid[1, 1])
+    writer = FFMpegWriter(
+        fps=max(1, round(1000.0 / frame_duration_ms)),
+        codec="libx264", bitrate=5000,
+        extra_args=["-pix_fmt", "yuv420p", "-movflags", "+faststart"],
+    )
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    with writer.saving(figure, str(output), dpi=110):
+        for frame_number, index in enumerate(frame_indices):
+            period = min(index // samples, periods - 1)
+            model_axis.clear()
+            torque_axis.clear()
+            stiffness_axis.clear()
+            xyz = positions[frame_number]
+            limb_length = max(float(np.max(np.abs(xyz[:, 0]))) + 0.18, 1.0)
+            skin_radius = float(topology["data"].get("skin_radius", 0.74))
+            draw_joint_envelope(
+                model_axis, float(topology["data"].get("joint_boot_radius", skin_radius))
+            )
+            draw_skin_shell(
+                model_axis, -limb_length, -0.15, skin_radius, "#2864b7"
+            )
+            draw_skin_shell(
+                model_axis, 0.15, limb_length, skin_radius, "#15956f", theta[index]
+            )
+            draw_limb(model_axis, -limb_length, -0.065, "#31688e")
+            draw_limb(model_axis, 0.065, limb_length, "#20a486", theta[index])
+            for spring_index, (a, b) in enumerate(zip(spring_a, spring_b)):
+                model_axis.plot(
+                    xyz[[a, b], 0], xyz[[a, b], 1], xyz[[a, b], 2],
+                    color=color_map(normalization(stiffness[period, spring_index])),
+                    linewidth=1.7,
+                )
+            model_axis.scatter(xyz[:, 0], xyz[:, 1], xyz[:, 2], s=12, color="#34495e")
+            model_axis.set(xlabel="X [m]", ylabel="Z [m]", zlabel="Y [m]")
+            model_axis.set_title("Adaptive 60-spring topology")
+            model_axis.set_box_aspect((2.2, 1.5, 1.5))
+            model_axis.view_init(elev=25, azim=-58)
+
+            torque_axis.plot(global_time, target, "k--", linewidth=1.3, label="target")
+            torque_axis.plot(global_time, spring_torque, color="#2a8c62", label="spring")
+            torque_axis.plot(global_time, motor, color="#c44e52", label="residual motor")
+            torque_axis.axvline(global_time[index], color="#f2a900", linewidth=2)
+            torque_axis.set(xlabel="Time [s]", ylabel="Torque [N m]", title="Torque history")
+            torque_axis.grid(alpha=0.22)
+            torque_axis.legend(loc="upper right", fontsize=8)
+
+            colors = [color_map(normalization(value)) for value in stiffness[period]]
+            stiffness_axis.bar(np.arange(stiffness.shape[1]), stiffness[period], color=colors)
+            stiffness_axis.set(xlabel="Spring index", ylabel="Stiffness [N/m]",
+                               title="Current stiffness vector")
+            stiffness_axis.grid(axis="y", alpha=0.22)
+            figure.suptitle(
+                f"Period {period + 1}/{periods} | t={global_time[index]:.2f} s",
+                fontsize=15,
+            )
+            figure.tight_layout(rect=(0, 0, 1, 0.96))
+            writer.grab_frame()
+    plt.close(figure)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
@@ -438,6 +605,7 @@ def main():
     parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     parser.add_argument("--seed", type=int, default=501)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--video-output", type=Path)
     args = parser.parse_args()
     if args.periods < 1 or args.demo_profiles < 1 or args.frame_duration_ms < 1:
         parser.error("periods, demo-profiles, and frame-duration-ms must be positive")
@@ -457,6 +625,11 @@ def main():
     build_html(dataset, topology, torque, stiffness, args.output,
                args.max_frames, args.visual_relaxation_steps, args.frame_duration_ms)
     print(f"Saved interactive simulation to {args.output}")
+    if args.video_output:
+        write_video(dataset, topology, torque, stiffness, args.video_output,
+                    args.max_frames, args.visual_relaxation_steps,
+                    args.frame_duration_ms)
+        print(f"Saved simulation video to {args.video_output}")
 
 
 if __name__ == "__main__":

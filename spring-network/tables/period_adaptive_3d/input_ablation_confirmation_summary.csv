@@ -1,0 +1,5 @@
+active_channels,channel_count,adapted_rmse_nm,settled_rmse_nm,mean_profile_offload_pct,aggregate_motor_work_offload_pct,negative_offload_profiles_pct,interpretation
+theta+theta_dot+theta_ddot+target_torque+spring_torque+motor_torque,6,37.368,35.856,32.865,34.408,2.50,matched full-input reference at rest scale 0.60
+target_torque,1,36.881,35.600,33.528,34.968,0.50,minimal viable input and best failure rate
+target_torque+spring_torque,2,36.420,34.926,34.750,36.454,1.00,effectively tied for best mean and lowest RMSE
+spring_torque+motor_torque,2,36.484,34.935,34.760,36.453,1.50,highest mean profile offload by 0.010 percentage points
