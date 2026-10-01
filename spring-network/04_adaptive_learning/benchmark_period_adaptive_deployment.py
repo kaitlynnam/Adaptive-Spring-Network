@@ -8,6 +8,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from figure_style import save_publication_figure, SPRING_COLOR, MOTOR_COLOR
 import numpy as np
 import torch
 
@@ -65,7 +66,7 @@ def save_benchmark_figures(output_dir, name, dataset, torque, rmse, offload):
     for ax in axes.flat:
         ax.grid(alpha=0.2)
     fig.tight_layout()
-    fig.savefig(figure_path(output_dir, name, "fig05a_many_profile_benchmark.png"), dpi=200)
+    save_publication_figure(fig, figure_path(output_dir, name, "fig05a_many_profile_benchmark.png"), dpi=200)
     plt.close(fig)
 
     order = np.argsort(settled_offload)
@@ -78,15 +79,19 @@ def save_benchmark_figures(output_dir, name, dataset, torque, rmse, offload):
         ax.plot(angle, dataset["target"][index], "k--", linewidth=2, label="target")
         ax.plot(angle, torque[index, 0], color="0.55", linewidth=2,
                 label="period 1 default")
-        ax.plot(angle, torque[index, -1], color="#2a8c62", linewidth=2,
+        ax.plot(angle, torque[index, -1], color=SPRING_COLOR, linewidth=2,
                 label=f"period {torque.shape[1]} settled")
+        ax.plot(angle, dataset["target"][index] - torque[index, -1],
+                color=MOTOR_COLOR, linewidth=1.6, label="Residual motor torque")
+        ax.text(0.0, 1.02, f"{label}: {settled_offload[index]:.1f}% offload, "
+                f"{settled_rmse[index]:.1f} N m RMSE", transform=ax.transAxes, va="bottom", fontsize=9)
         ax.set(xlabel="Joint angle [deg]", ylabel="Torque [N m]",
                title=f"{label}: {settled_offload[index]:.1f}% offload, "
                      f"{settled_rmse[index]:.1f} N m RMSE")
         ax.grid(alpha=0.2)
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=2)
     fig.tight_layout()
-    fig.savefig(figure_path(output_dir, name, "fig05b_many_profile_examples.png"), dpi=200)
+    save_publication_figure(fig, figure_path(output_dir, name, "fig05b_many_profile_examples.png"), dpi=200)
     plt.close(fig)
 
 

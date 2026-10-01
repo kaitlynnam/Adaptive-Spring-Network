@@ -19,9 +19,14 @@ Main outputs use concise stable names:
 - `fig07_training_convergence.png`
 - `interactive_simulation.html`
 
-Figure 3 was retired because the held-out examples duplicated the clearer
-multi-period deployment behavior in Figure 4. Figure 6 remains reserved for
-the final mechanical-convergence output.
+Figure 3 now contains the test-profile flow diagram and Figure 6 shows exact
+deployment equilibrium-force residuals. See [the figure index](period_adaptive_3d/README.md)
+for direct links, provenance, and regeneration commands.
+
+Experiment figures live in `period_adaptive_3d/experiments/`; superseded exports
+are preserved in its `previous_style/` subfolder. Main publication exports have
+transparent PNG and editable SVG versions. Historical convergence images are
+preserved where the original training histories were not saved.
 
 ## Figure-generation standard
 

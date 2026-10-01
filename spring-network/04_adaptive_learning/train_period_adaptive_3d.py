@@ -14,6 +14,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from figure_style import save_publication_figure
 import numpy as np
 import torch
 
@@ -439,6 +440,8 @@ def save_period_figures(output_dir, name, dataset, torque, stiffness, history,
                         example_count=3):
     """Write the training-convergence figure for the main paper set."""
     output_dir.mkdir(parents=True, exist_ok=True)
+    np.savetxt(figure_path(output_dir, name, "training_history.csv"),
+               np.asarray(history), delimiter=",", header="iteration,rmse_nm,loss", comments="")
     iterations = np.asarray([row[0] for row in history])
     rmse = np.asarray([row[1] for row in history])
     fig, ax = plt.subplots(figsize=(7.2, 4.4))
@@ -447,7 +450,7 @@ def save_period_figures(output_dir, name, dataset, torque, stiffness, history,
            title="Period-adaptive training convergence")
     ax.grid(alpha=0.25)
     fig.tight_layout()
-    fig.savefig(figure_path(output_dir, name, "fig07_training_convergence.png"), dpi=180)
+    save_publication_figure(fig, figure_path(output_dir, name, "fig07_training_convergence.png"), dpi=180)
     plt.close(fig)
 
 

@@ -225,7 +225,8 @@ def render(topology_path=TOPOLOGY_PATH, output_path=OUTPUT_PATH, angle_degrees=2
     colorbar.set_label("baseline stiffness [N/m]")
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path, dpi=190, facecolor="white", bbox_inches="tight")
+    figure.savefig(output_path, dpi=220, transparent=True, bbox_inches="tight")
+    figure.savefig(output_path.with_suffix(".svg"), transparent=True, bbox_inches="tight")
     plt.close(figure)
     return output_path
 

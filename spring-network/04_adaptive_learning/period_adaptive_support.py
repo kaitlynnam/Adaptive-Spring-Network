@@ -16,7 +16,11 @@ MAIN_ARTIFACT_NAMES = {MAIN_MODEL_NAME, f"{MAIN_MODEL_NAME}_many_profiles"}
 def figure_path(output_dir, model_name, filename):
     """Use concise names for the main model and prefixed names for experiments."""
     name = filename if model_name in MAIN_ARTIFACT_NAMES else f"{model_name}_{filename}"
-    return Path(output_dir) / name
+    directory = Path(output_dir)
+    if model_name not in MAIN_ARTIFACT_NAMES:
+        directory = directory / "experiments"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory / name
 
 
 def causal_derivative(values, time):

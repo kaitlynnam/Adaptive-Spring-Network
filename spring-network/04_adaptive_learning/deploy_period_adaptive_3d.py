@@ -8,6 +8,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from figure_style import save_publication_figure, SPRING_COLOR, MOTOR_COLOR
 import numpy as np
 import torch
 
@@ -78,6 +79,21 @@ def dataset_period(dataset, index):
     return result
 
 
+def deployment_profiles(rng, periods, trajectory_mode, periods_per_profile=2):
+    """Build the target-profile sequence used by a deployment rollout."""
+    if trajectory_mode == "repeated":
+        profile = generate_profile_parameters(rng, 1)[0]
+        return [dict(profile) for _ in range(periods)]
+    if trajectory_mode == "changing":
+        return generate_profile_parameters(rng, periods)
+    profile_count = (periods + periods_per_profile - 1) // periods_per_profile
+    unique_profiles = generate_profile_parameters(rng, profile_count)
+    return [
+        dict(unique_profiles[index // periods_per_profile])
+        for index in range(periods)
+    ]
+
+
 def deploy(model, metadata, dataset, topology, relaxation_steps, batch_size,
            progress_interval):
     """Run the stateful controller, including its no-input first period."""
@@ -113,22 +129,23 @@ def save_figures(output_dir, name, dataset, torque, stiffness):
     output_dir.mkdir(parents=True, exist_ok=True)
     periods = len(torque)
     period_seconds = dataset["period_seconds"]
-    colors = ["#888888"] + [plt.cm.viridis(x) for x in np.linspace(0.25, 0.9, max(periods - 1, 1))]
+    colors = ["#2f6f9f"] * periods
     fig, ax = plt.subplots(figsize=(10, 5))
     for index in range(periods):
         time = dataset["t"][index] - dataset["t"][index, 0] + index * period_seconds
         ax.plot(time, dataset["target"][index], "k--", alpha=0.7,
-                label="target" if index == 0 else None)
+                label="Target torque" if index == 0 else None)
         ax.plot(time, torque[index], color=colors[index], linewidth=2,
-                label=f"spring period {index + 1}{' (default)' if index == 0 else ''}")
+                label="Spring torque" if index == 0 else None)
+        ax.plot(time, dataset["target"][index] - torque[index],
+                color="#d97720", linewidth=1.6,
+                label="Residual motor torque" if index == 0 else None)
         if index:
             ax.axvline(index * period_seconds, color="0.8", linewidth=0.8)
-    ax.set(xlabel="Time [s]", ylabel="Torque [N m]",
-           title="Deployed period-adaptive torque")
+    ax.set(xlabel="Time [s]", ylabel="Torque [N m]")
     ax.grid(alpha=0.2)
-    ax.legend(fontsize=8, ncol=2)
     fig.tight_layout()
-    fig.savefig(figure_path(output_dir, name, "fig04a_deployment_torque_time.png"), dpi=180)
+    save_publication_figure(fig, figure_path(output_dir, name, "fig04a_deployment_torque_time.png"), dpi=180)
     plt.close(fig)
 
     fig, axes = plt.subplots(periods, 1, figsize=(7.5, max(3.2, 2.8 * periods)), squeeze=False)
@@ -137,20 +154,23 @@ def save_figures(output_dir, name, dataset, torque, stiffness):
         ax.plot(angle, dataset["target"][index], "k--", linewidth=2, label="target")
         ax.plot(angle, torque[index], color=colors[index], linewidth=2,
                 label="spring (default)" if index == 0 else "spring (from previous period)")
-        ax.set(xlabel="Joint angle [deg]", ylabel="Torque [N m]", title=f"Period {index + 1}")
+        ax.plot(angle, dataset["target"][index] - torque[index], color=MOTOR_COLOR,
+                linewidth=1.6, label="Residual motor torque")
+        ax.text(0.02, 0.95, f"Period {index + 1}", transform=ax.transAxes, va="top")
+        ax.set(xlabel="Joint angle [deg]", ylabel="Torque [N m]")
         ax.grid(alpha=0.2)
         ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(figure_path(output_dir, name, "fig04b_deployment_torque_angle.png"), dpi=180)
+    save_publication_figure(fig, figure_path(output_dir, name, "fig04b_deployment_torque_angle.png"), dpi=180)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(10, max(3, 0.55 * periods)))
     image = ax.imshow(stiffness, aspect="auto", cmap="viridis")
-    ax.set(xlabel="Spring index", ylabel="Period", title="Deployed stiffness schedule")
-    ax.set_yticks(np.arange(periods), [f"{i + 1}{' default' if i == 0 else ''}" for i in range(periods)])
+    ax.set(xlabel="Spring index", ylabel="Period")
+    ax.set_yticks(np.arange(periods), [str(i + 1) for i in range(periods)])
     fig.colorbar(image, ax=ax, label="Stiffness [N/m]")
     fig.tight_layout()
-    fig.savefig(figure_path(output_dir, name, "fig04c_deployment_stiffness.png"), dpi=180)
+    save_publication_figure(fig, figure_path(output_dir, name, "fig04c_deployment_stiffness.png"), dpi=180)
     plt.close(fig)
 
 
@@ -159,7 +179,15 @@ def main():
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
     parser.add_argument("--topology", type=Path, default=DEFAULT_TOPOLOGY)
     parser.add_argument("--periods", type=int, default=6)
-    parser.add_argument("--trajectory-mode", choices=["repeated", "changing"], default="repeated")
+    parser.add_argument(
+        "--trajectory-mode", choices=["repeated", "changing", "grouped"], default="repeated",
+        help=("Target-profile schedule: one profile throughout, a new profile each period, "
+              "or profile blocks controlled by --periods-per-profile."),
+    )
+    parser.add_argument(
+        "--periods-per-profile", type=int, default=2,
+        help="Number of consecutive periods per target profile in grouped mode.",
+    )
     parser.add_argument("--relaxation-steps", type=int, default=300)
     parser.add_argument("--mechanics-batch-size", type=int, default=1024)
     parser.add_argument("--mechanics-progress-interval", type=int, default=10)
@@ -169,6 +197,8 @@ def main():
     args = parser.parse_args()
     if args.periods < 1:
         parser.error("--periods must be positive")
+    if args.periods_per_profile < 1:
+        parser.error("--periods-per-profile must be positive")
     if args.device == "cuda" and not torch.cuda.is_available():
         parser.error("CUDA requested but unavailable")
     model, metadata = load_checkpoint(args.checkpoint)
@@ -185,9 +215,9 @@ def main():
     angles = np.radians(ANGLE_DEGREES)
     basis = spatial_initial_basis(topology, angles, args.relaxation_steps)
     rng = np.random.default_rng(args.seed)
-    profiles = generate_profile_parameters(rng, 1 if args.trajectory_mode == "repeated" else args.periods)
-    if args.trajectory_mode == "repeated":
-        profiles = [dict(profiles[0]) for _ in range(args.periods)]
+    profiles = deployment_profiles(
+        rng, args.periods, args.trajectory_mode, args.periods_per_profile
+    )
     dataset = build_period_dataset(
         profiles, angles, basis, period_seconds, samples, args.seed + 10_000,
         motion_mode=str(metadata["motion_mode"]), frequency_hz=1.0 / period_seconds,
@@ -221,6 +251,30 @@ def main():
     save_figures(output_dir, args.output_name, dataset, torque, stiffness)
     table = PROJECT_ROOT / "tables" / "period_adaptive_3d" / f"{args.output_name}_deployment.csv"
     table.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        table.with_suffix(".npz"), time=dataset["t"], theta=dataset["theta"],
+        target_torque=dataset["target"], spring_torque=torque,
+        stiffness=stiffness, force_residual_n=force_residual,
+        period_seconds=period_seconds, trajectory_mode=args.trajectory_mode,
+        periods_per_profile=args.periods_per_profile, seed=args.seed,
+        checkpoint=str(args.checkpoint),
+    )
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    residual = np.asarray(force_residual).reshape(args.periods, -1)
+    for index, values in enumerate(residual):
+        ax.plot(np.arange(values.size), values, alpha=0.7, label=f"Period {index + 1}")
+    positive = residual[residual > 0]
+    if positive.size and positive.max() / positive.min() > 100:
+        ax.set_yscale("symlog", linthresh=float(positive.min()))
+    ax.set(xlabel="Sample within period", ylabel="Equilibrium force residual [N]")
+    ax.text(0.02, 0.98, f"Mean: {residual.mean():.3g} N; maximum: {residual.max():.3g} N",
+            transform=ax.transAxes, va="top")
+    ax.legend(fontsize=8, loc="lower right", ncol=2)
+    ax.grid(alpha=0.2)
+    fig.tight_layout()
+    save_publication_figure(fig, figure_path(output_dir, args.output_name,
+                            "fig06_equilibrium_force_residual.png"))
+    plt.close(fig)
     with table.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=[
             "period", "policy", "rmse_nm", "motor_work_offload_pct",

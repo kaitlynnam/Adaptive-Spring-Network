@@ -7,6 +7,7 @@ import json
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from figure_style import save_publication_figure, SPRING_COLOR, MOTOR_COLOR
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Circle, Polygon
 import numpy as np
 
@@ -65,7 +66,7 @@ def draw_network(axis):
                    (5, 6), (5, 8), (6, 7), (6, 8)]
     for node_a, node_b in connections:
         a, b = nodes[node_a], nodes[node_b]
-        axis.plot([a[0], b[0]], [a[1], b[1]], color=ORANGE,
+        axis.plot([a[0], b[0]], [a[1], b[1]], color=SPRING_COLOR,
                   linewidth=1.05, alpha=.78, zorder=1)
     axis.scatter(nodes[[0, 1, 2], 0], nodes[[0, 1, 2], 1], s=24, color=BLUE,
                  edgecolor="white", linewidth=.4, zorder=3)
@@ -138,10 +139,11 @@ def export_powerpoint_assets(time, angle_deg, target, spring):
     save_asset(network_figure, "03_spring_network")
 
     output_figure, output_axis = plt.subplots(figsize=(5.0, 3.2))
-    output_axis.plot(time, target, color=BLUE, linewidth=2.2, label="Target torque")
-    output_axis.plot(time, spring, color=ORANGE, linewidth=2.2, label="Spring-network torque")
+    output_axis.plot(time, target, color="black", linestyle="--", linewidth=2.2, label="Target torque")
+    output_axis.plot(time, spring, color=SPRING_COLOR, linewidth=2.2, label="Spring-network torque")
+    output_axis.plot(time, target - spring, color=MOTOR_COLOR, linewidth=1.6, label="Residual motor torque")
     sample_marks = np.arange(0, time.size, 8)
-    output_axis.scatter(time[sample_marks], spring[sample_marks], s=14, color=ORANGE,
+    output_axis.scatter(time[sample_marks], spring[sample_marks], s=14, color=SPRING_COLOR,
                         edgecolor="white", linewidth=.35, zorder=4)
     style_plot(output_axis, "Time (s)", "Torque (N m)")
     output_axis.set_title("Torque vs. time", fontsize=11, weight="bold", color=DARK, pad=6)
@@ -151,22 +153,22 @@ def export_powerpoint_assets(time, angle_deg, target, spring):
     save_asset(output_figure, "04_output_torque_time")
 
     angle_figure, angle_axis = plt.subplots(figsize=(5.0, 3.2))
-    angle_axis.plot(angle_deg, target, color=BLUE, linewidth=2.2)
+    angle_axis.plot(angle_deg, target, color="black", linestyle="--", linewidth=2.2)
     style_plot(angle_axis, "Joint angle (deg)", "Torque (N m)")
     angle_axis.set_title("Torque vs. joint angle", fontsize=11, weight="bold", color=DARK, pad=6)
     angle_figure.subplots_adjust(left=.14, right=.98, top=.86, bottom=.18)
     save_asset(angle_figure, "06_torque_angle_profile")
 
     time_figure, time_axis = plt.subplots(figsize=(5.0, 3.2))
-    time_axis.plot(time, target, color=BLUE, linewidth=2.2)
+    time_axis.plot(time, target, color="black", linestyle="--", linewidth=2.2)
     style_plot(time_axis, "Time (s)", "Torque (N m)")
     time_axis.set_title("Torque vs. time", fontsize=11, weight="bold", color=DARK, pad=6)
     time_figure.subplots_adjust(left=.14, right=.98, top=.86, bottom=.18)
     save_asset(time_figure, "07_torque_time_profile")
 
     paired_figure, (paired_angle, paired_time) = plt.subplots(1, 2, figsize=(9.4, 3.4))
-    paired_angle.plot(angle_deg, target, color=BLUE, linewidth=2.2)
-    paired_time.plot(time, target, color=BLUE, linewidth=2.2)
+    paired_angle.plot(angle_deg, target, color="black", linestyle="--", linewidth=2.2)
+    paired_time.plot(time, target, color="black", linestyle="--", linewidth=2.2)
     style_plot(paired_angle, "Joint angle (deg)", "Torque (N m)")
     style_plot(paired_time, "Time (s)", "Torque (N m)")
     paired_angle.set_title("Torque vs. joint angle", fontsize=11, weight="bold",
@@ -212,7 +214,7 @@ def main():
     figure.text(left_x + .020, .855, "1  INPUT", ha="left",
                 fontsize=9.2, weight="bold", color=DARK)
     before_time = figure.add_axes([left_x + .054, .690, .172, .120])
-    before_time.plot(time, target, color=BLUE, linewidth=1.8)
+    before_time.plot(time, target, color="black", linestyle="--", linewidth=1.8)
     style_plot(before_time, "Time (s)", "Torque (N m)")
     before_time.set_title("Target torque vs. time", fontsize=8.5, weight="bold", color=DARK, pad=4)
 
@@ -248,15 +250,16 @@ def main():
     figure.text(left_x + .020, .242, "4  OUTPUT",
                 ha="left", fontsize=9.2, weight="bold", color=DARK)
     after_time = figure.add_axes([left_x + .054, .085, .172, .105])
-    after_time.plot(time, target, color=BLUE, linewidth=1.55, label="Target torque")
-    after_time.plot(time, spring, color=ORANGE, linewidth=1.55, label="Spring-network torque")
+    after_time.plot(time, target, color="black", linestyle="--", linewidth=1.55, label="Target torque")
+    after_time.plot(time, spring, color=SPRING_COLOR, linewidth=1.55, label="Spring-network torque")
+    after_time.plot(time, target - spring, color=MOTOR_COLOR, linewidth=1.4, label="Residual motor torque")
     sample_marks = np.arange(0, time.size, 8)
-    after_time.scatter(time[sample_marks], spring[sample_marks], s=8, color=ORANGE,
+    after_time.scatter(time[sample_marks], spring[sample_marks], s=8, color=SPRING_COLOR,
                        edgecolor="white", linewidth=.25, zorder=4)
     style_plot(after_time, "Time (s)", "Torque (N m)")
     after_time.set_title("Torque vs. time", fontsize=8.5, weight="bold", color=DARK, pad=4)
     handles, labels = after_time.get_legend_handles_labels()
-    figure.legend(handles, labels, loc="center", bbox_to_anchor=(left_x + left_w / 2, .213), ncol=2,
+    figure.legend(handles, labels, loc="center", bbox_to_anchor=(left_x + left_w / 2, .213), ncol=1,
                   frameon=False, fontsize=7.8, handlelength=2.2)
     # Existing Figure 1, retained intact on the right.
     fig1_axis = figure.add_axes([right_x, .035, right_w, .845])
@@ -274,7 +277,7 @@ def main():
     add_arrow(figure, (center_x, .482), (center_x, .474))
     add_arrow(figure, (center_x, .312), (center_x, .278))
 
-    figure.savefig(OUTPUT_PATH, bbox_inches="tight", facecolor="white")
+    save_publication_figure(figure, OUTPUT_PATH)
     print(f"Selected profile: {index + 1}")
     print(f"Settled RMSE: {rmse:.6f} N m")
     print(f"Settled offload: {offload:.6f}%")

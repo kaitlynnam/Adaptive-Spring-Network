@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from figure_style import save_publication_figure
 from matplotlib.patches import FancyBboxPatch
 
 
@@ -102,7 +103,7 @@ def main():
     )
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUTPUT, dpi=220, bbox_inches="tight", facecolor="white")
+    save_publication_figure(fig, OUTPUT)
     plt.close(fig)
     print(OUTPUT)
 
